@@ -25,6 +25,7 @@ const profile: Profile = {
   currency: '₹',
   bill_prefix: 'TX-',
   upi_id: 'ravi@okhdfc',
+  trade: 'taxi',
   next_bill_no: 2,
 };
 

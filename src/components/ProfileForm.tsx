@@ -25,12 +25,12 @@ export function ProfileForm({
   submitLabel,
   onSubmit,
 }: {
-  initial?: ProfileInput | null;
+  initial?: Partial<ProfileInput> | null;
   submitLabel: string;
   onSubmit: (p: ProfileInput) => Promise<void>;
 }) {
   const c = useTheme();
-  const [p, setP] = useState<ProfileInput>(initial ?? EMPTY);
+  const [p, setP] = useState<ProfileInput>({ ...EMPTY, ...initial });
   const [error, setError] = useState<string | null>(null);
   const [upiError, setUpiError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

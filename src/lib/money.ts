@@ -91,3 +91,23 @@ export function isValidISODate(iso: string): boolean {
 export function formatBillNo(prefix: string, n: number): string {
   return `${prefix}${String(n).padStart(4, '0')}`;
 }
+
+/**
+ * Lowest next bill number that can't collide with an existing bill under this prefix.
+ * ("INV-", ["INV-0007", "TX-0099", "INV-12"]) -> 13
+ */
+export function minNextBillNo(prefix: string, existingBillNos: string[]): number {
+  let max = 0;
+  for (const no of existingBillNos) {
+    if (!no.startsWith(prefix)) continue;
+    const rest = no.slice(prefix.length);
+    if (/^\d+$/.test(rest)) max = Math.max(max, Number(rest));
+  }
+  return max + 1;
+}
+
+/** Local-midnight Date for a "YYYY-MM-DD" string (inverse of todayISO). */
+export function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}

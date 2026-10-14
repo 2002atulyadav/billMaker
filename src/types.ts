@@ -1,4 +1,4 @@
-export const UNITS = ['pcs', 'kg', 'km', 'hr', 'trip', 'day', 'ltr', 'other'] as const;
+export const UNITS = ['pcs', 'kg', 'km', 'hr', 'trip', 'day', 'month', 'visit', 'ltr', 'mtr', 'other'] as const;
 export type Unit = (typeof UNITS)[number];
 
 export type Profile = {
@@ -12,10 +12,16 @@ export type Profile = {
   bill_prefix: string;
   /** e.g. "ravi@okhdfc"; empty when not set. Used for the "Scan to pay" QR. */
   upi_id: string;
+  /** chosen at onboarding; see src/lib/presets.ts */
+  trade: Trade;
   next_bill_no: number;
 };
 
-export type ProfileInput = Omit<Profile, 'next_bill_no'>;
+/** What the profile form edits. Trade is fixed at onboarding and bill numbering has its own setter. */
+export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade'>;
+
+export const TRADES = ['taxi', 'tutor', 'repair', 'tailor', 'freelancer', 'shop', 'general'] as const;
+export type Trade = (typeof TRADES)[number];
 
 export type Item = {
   id: number;

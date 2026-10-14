@@ -55,6 +55,9 @@ const MIGRATIONS: string[] = [
   ALTER TABLE bills ADD COLUMN status TEXT NOT NULL DEFAULT 'unpaid';
   ALTER TABLE bills ADD COLUMN paid_at TEXT;
   `,
+  `
+  ALTER TABLE profile ADD COLUMN trade TEXT NOT NULL DEFAULT 'general';
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

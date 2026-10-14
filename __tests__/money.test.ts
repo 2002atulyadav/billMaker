@@ -3,8 +3,10 @@ import {
   formatBillNo,
   formatDate,
   formatMoney,
+  isoToDate,
   isValidISODate,
   lineTotal,
+  minNextBillNo,
   minorToDecimal,
   minorToInput,
   parseAmount,
@@ -116,5 +118,28 @@ describe('dates and bill numbers', () => {
   it('formatBillNo pads to 4 digits', () => {
     expect(formatBillNo('INV-', 7)).toBe('INV-0007');
     expect(formatBillNo('', 12345)).toBe('12345');
+  });
+});
+
+describe('minNextBillNo', () => {
+  it('is one past the highest number used with this prefix', () => {
+    expect(minNextBillNo('INV-', ['INV-0007', 'INV-12', 'INV-0003'])).toBe(13);
+  });
+  it('ignores other prefixes and non-numeric suffixes', () => {
+    expect(minNextBillNo('INV-', ['TX-0099', 'INV-0002', 'INV-ABC'])).toBe(3);
+  });
+  it('starts at 1 with no bills', () => {
+    expect(minNextBillNo('INV-', [])).toBe(1);
+  });
+  it('handles an empty prefix', () => {
+    expect(minNextBillNo('', ['0041', 'INV-0100'])).toBe(42);
+  });
+});
+
+describe('isoToDate', () => {
+  it('round-trips with todayISO in local time', () => {
+    const d = isoToDate('2026-03-09');
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2026, 2, 9, 0]);
+    expect(todayISO(d)).toBe('2026-03-09');
   });
 });

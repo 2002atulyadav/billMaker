@@ -10,6 +10,7 @@ const profile: Profile = {
   currency: '₹',
   bill_prefix: 'TX-',
   upi_id: '',
+  trade: 'taxi',
   next_bill_no: 2,
 };
 

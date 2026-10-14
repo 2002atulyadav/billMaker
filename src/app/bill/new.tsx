@@ -1,15 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { DateField } from '@/components/DateField';
 import { ItemPickerModal } from '@/components/ItemPickerModal';
-import { Button, Card, Field, Row, SectionTitle, T } from '@/components/ui';
+import { Button, Card, Chip, Field, Row, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { createBill, getBill, listItems } from '@/db/repo';
+import { createBill, getBill, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { isSameCustomer, suggestCustomers } from '@/lib/customers';
 import {
   computeTotals,
   formatMoney,
@@ -20,7 +22,7 @@ import {
   parseQty,
   todayISO,
 } from '@/lib/money';
-import type { Item } from '@/types';
+import type { BillWithLines, Item } from '@/types';
 
 type DraftLine = { key: number; description: string; qty: string; unit: string; price: string };
 type LineErrors = { description?: boolean; qty?: boolean; price?: boolean };
@@ -39,6 +41,7 @@ export default function NewBill() {
   const [discount, setDiscount] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<Item[]>([]);
+  const [recent, setRecent] = useState<RecentCustomer[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lineErrors, setLineErrors] = useState<Record<number, LineErrors>>({});
@@ -48,29 +51,39 @@ export default function NewBill() {
 
   useEffect(() => {
     listItems(db).then(setItems);
+    listRecentCustomers(db).then(setRecent);
   }, [db]);
+
+  /** Copies an existing bill's contents into the form. Date stays today; numbering is assigned on save. */
+  const fillFromBill = useCallback((b: BillWithLines) => {
+    setCustomerName(b.customer_name);
+    setCustomerPhone(b.customer_phone);
+    setDiscount(b.discount_minor ? minorToInput(b.discount_minor) : '');
+    setNotes(b.notes);
+    setLines(
+      b.lines.map((l) => ({
+        key: nextKey.current++,
+        description: l.description,
+        qty: String(l.qty),
+        unit: l.unit,
+        price: minorToInput(l.unit_price_minor),
+      })),
+    );
+  }, []);
 
   // "Duplicate" opens this screen with ?from=<billId> to prefill from an existing bill.
   useEffect(() => {
     if (!from) return;
-    getBill(db, Number(from)).then((b) => {
-      if (!b) return;
-      setCustomerName(b.customer_name);
-      setCustomerPhone(b.customer_phone);
-      setDiscount(b.discount_minor ? minorToInput(b.discount_minor) : '');
-      setNotes(b.notes);
-      setLines(
-        b.lines.map((l) =>
-          newLine({
-            description: l.description,
-            qty: String(l.qty),
-            unit: l.unit,
-            price: minorToInput(l.unit_price_minor),
-          }),
-        ),
-      );
-    });
-  }, [db, from]);
+    getBill(db, Number(from)).then((b) => b && fillFromBill(b));
+  }, [db, from, fillFromBill]);
+
+  const suggestions = suggestCustomers(recent, customerName, customerPhone);
+  const knownCustomer = recent.find((r) => isSameCustomer(r, customerName, customerPhone));
+
+  async function repeatLastBill(billId: number) {
+    const b = await getBill(db, billId);
+    if (b) fillFromBill(b);
+  }
 
   const currency = profile?.currency ?? '₹';
   const parsed = lines.map((l) => ({ qty: parseQty(l.qty) ?? 0, unit_price_minor: parseAmount(l.price) ?? 0 }));
@@ -108,7 +121,7 @@ export default function NewBill() {
     if (lines.length === 0) msg = 'Add at least one item to the bill.';
     else if (Object.keys(errs).length) msg = 'Fix the highlighted item fields.';
     else if (discount.trim() && parseAmount(discount) === null) msg = 'Discount must be a valid amount.';
-    else if (!isValidISODate(date)) msg = 'Date must be in YYYY-MM-DD format.';
+    else if (!isValidISODate(date)) msg = 'Pick a valid date.';
     setFormError(msg);
     if (msg) return;
 
@@ -144,7 +157,32 @@ export default function NewBill() {
           <SectionTitle>Customer (optional)</SectionTitle>
           <Field placeholder="Customer name" value={customerName} onChangeText={setCustomerName} />
           <Field placeholder="Phone" keyboardType="phone-pad" value={customerPhone} onChangeText={setCustomerPhone} />
-          <Field label="Date" placeholder="YYYY-MM-DD" value={date} onChangeText={setDate} />
+          {suggestions.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Row>
+                {suggestions.map((r) => (
+                  <Chip
+                    key={r.last_bill_id}
+                    label={r.customer_name || r.customer_phone}
+                    selected={false}
+                    onPress={() => {
+                      setCustomerName(r.customer_name);
+                      setCustomerPhone(r.customer_phone);
+                    }}
+                  />
+                ))}
+              </Row>
+            </ScrollView>
+          ) : null}
+          {knownCustomer && lines.length === 0 ? (
+            <Button
+              title="Repeat their last bill"
+              variant="secondary"
+              icon={<Ionicons name="repeat" size={18} color={c.primary} />}
+              onPress={() => repeatLastBill(knownCustomer.last_bill_id)}
+            />
+          ) : null}
+          <DateField label="Date" value={date} onChange={setDate} />
         </Card>
 
         <Card>
