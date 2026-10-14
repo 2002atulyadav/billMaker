@@ -35,6 +35,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="bill/new" options={{ title: 'New bill' }} />
             <Stack.Screen name="bill/[id]" options={{ title: 'Bill' }} />
+            <Stack.Screen name="client/[id]" options={{ title: 'Client' }} />
           </Stack>
         </SQLiteProvider>
       </Suspense>

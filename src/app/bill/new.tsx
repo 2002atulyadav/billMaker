@@ -8,7 +8,7 @@ import { DateField } from '@/components/DateField';
 import { ItemPickerModal } from '@/components/ItemPickerModal';
 import { Button, Card, Chip, Field, Row, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { createBill, getBill, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
+import { createBill, getBill, listClients, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { isSameCustomer, suggestCustomers } from '@/lib/customers';
@@ -22,7 +22,7 @@ import {
   parseQty,
   todayISO,
 } from '@/lib/money';
-import type { BillWithLines, Item } from '@/types';
+import type { BillWithLines, Client, Item } from '@/types';
 
 type DraftLine = { key: number; description: string; qty: string; unit: string; price: string };
 type LineErrors = { description?: boolean; qty?: boolean; price?: boolean };
@@ -42,6 +42,7 @@ export default function NewBill() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [recent, setRecent] = useState<RecentCustomer[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lineErrors, setLineErrors] = useState<Record<number, LineErrors>>({});
@@ -52,6 +53,7 @@ export default function NewBill() {
   useEffect(() => {
     listItems(db).then(setItems);
     listRecentCustomers(db).then(setRecent);
+    listClients(db).then(setClients);
   }, [db]);
 
   /** Copies an existing bill's contents into the form. Date stays today; numbering is assigned on save. */
@@ -77,8 +79,18 @@ export default function NewBill() {
     getBill(db, Number(from)).then((b) => b && fillFromBill(b));
   }, [db, from, fillFromBill]);
 
-  const suggestions = suggestCustomers(recent, customerName, customerPhone);
+  // Saved clients are suggested alongside past customers; last_bill_id 0 means no bill yet.
+  const people = [
+    ...recent,
+    ...clients
+      .filter((cl) => !recent.some((r) => isSameCustomer(r, cl.name, cl.phone)))
+      .map((cl) => ({ customer_name: cl.name, customer_phone: cl.phone, last_bill_id: 0 })),
+  ];
+  const suggestions = suggestCustomers(people, customerName, customerPhone);
   const knownCustomer = recent.find((r) => isSameCustomer(r, customerName, customerPhone));
+  const matchedClient = clients.find((cl) =>
+    isSameCustomer({ customer_name: cl.name, customer_phone: cl.phone, last_bill_id: 0 }, customerName, customerPhone),
+  );
 
   async function repeatLastBill(billId: number) {
     const b = await getBill(db, billId);
@@ -130,6 +142,9 @@ export default function NewBill() {
       const id = await createBill(db, {
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
+        // Linking to a saved client puts their address on the bill and includes it in their statements.
+        client_id: matchedClient?.id ?? null,
+        customer_address: matchedClient?.address ?? '',
         date,
         discount_minor: parseAmount(discount) ?? 0,
         notes: notes.trim(),
@@ -162,7 +177,7 @@ export default function NewBill() {
               <Row>
                 {suggestions.map((r) => (
                   <Chip
-                    key={r.last_bill_id}
+                    key={`${r.customer_name}|${r.customer_phone}`}
                     label={r.customer_name || r.customer_phone}
                     selected={false}
                     onPress={() => {

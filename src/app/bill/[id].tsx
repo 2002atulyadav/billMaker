@@ -67,8 +67,13 @@ export default function BillDetail() {
     load();
   }
 
+  const isPeriodBill = !!bill.period_start;
+
   function confirmDelete() {
-    Alert.alert(`Delete ${bill!.bill_no}?`, 'This cannot be undone.', [
+    const msg = isPeriodBill
+      ? `Its ${bill!.lines.length} work entries go back to unbilled so you can bill them again. This cannot be undone.`
+      : 'This cannot be undone.';
+    Alert.alert(`Delete ${bill!.bill_no}?`, msg, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -134,12 +139,23 @@ export default function BillDetail() {
         </T>
       ) : null}
 
-      <Button
-        title="Duplicate as new bill"
-        variant="secondary"
-        icon={<Ionicons name="copy-outline" size={18} color={c.primary} />}
-        onPress={() => router.push({ pathname: '/bill/new', params: { from: String(bill.id) } })}
-      />
+      {bill.client_id ? (
+        <Button
+          title={`Open client · ${bill.customer_name}`}
+          variant="secondary"
+          icon={<Ionicons name="person-outline" size={18} color={c.primary} />}
+          onPress={() => router.push({ pathname: '/client/[id]', params: { id: String(bill.client_id) } })}
+        />
+      ) : null}
+      {/* Period bills come from logged work; duplicating them would double-bill those entries. */}
+      {!isPeriodBill ? (
+        <Button
+          title="Duplicate as new bill"
+          variant="secondary"
+          icon={<Ionicons name="copy-outline" size={18} color={c.primary} />}
+          onPress={() => router.push({ pathname: '/bill/new', params: { from: String(bill.id) } })}
+        />
+      ) : null}
       <Button title="Delete bill" variant="danger" onPress={confirmDelete} />
     </ScrollView>
   );

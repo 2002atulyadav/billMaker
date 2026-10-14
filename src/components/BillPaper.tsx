@@ -4,7 +4,9 @@ import { StyleSheet, Text, View, type TextProps } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import { Spacing } from '@/constants/theme';
+import { detailsText } from '@/lib/entries';
 import { formatDate, formatMoney, formatQty } from '@/lib/money';
+import { formatPeriod } from '@/lib/period';
 import { qrMatrix, upiLink } from '@/lib/upi';
 import type { BillWithLines, Profile } from '@/types';
 
@@ -44,23 +46,39 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
         <View style={{ marginTop: Spacing.three }}>
           <P muted style={styles.label}>BILL TO</P>
           {bill.customer_name ? <P style={{ fontWeight: '600' }}>{bill.customer_name}</P> : null}
+          {bill.customer_address ? <P muted>{bill.customer_address}</P> : null}
           {bill.customer_phone ? <P muted>{bill.customer_phone}</P> : null}
         </View>
       ) : null}
 
+      {bill.period_start && bill.period_end ? (
+        <View style={styles.period}>
+          <P muted style={styles.label}>BILLING PERIOD</P>
+          <P style={{ fontWeight: '600' }}>
+            {formatPeriod({ start: bill.period_start, end: bill.period_end })} · {bill.lines.length}{' '}
+            {bill.lines.length === 1 ? 'entry' : 'entries'}
+          </P>
+        </View>
+      ) : null}
+
       <View style={{ marginTop: Spacing.three }}>
-        {bill.lines.map((l, i) => (
-          <View key={i} style={styles.line}>
-            <View style={{ flex: 1 }}>
-              <P style={{ fontWeight: '500' }}>{l.description}</P>
-              <P muted style={{ fontSize: 13 }}>
-                {formatQty(l.qty)}
-                {l.unit ? ` ${l.unit}` : ''} × {money(l.unit_price_minor)}
-              </P>
+        {bill.lines.map((l, i) => {
+          const extra = detailsText(bill.detail_fields, l.details);
+          return (
+            <View key={i} style={styles.line}>
+              <View style={{ flex: 1 }}>
+                {l.entry_date ? <P muted style={{ fontSize: 12 }}>{formatDate(l.entry_date)}</P> : null}
+                <P style={{ fontWeight: '500' }}>{l.description}</P>
+                {extra ? <P muted style={{ fontSize: 13 }}>{extra}</P> : null}
+                <P muted style={{ fontSize: 13 }}>
+                  {formatQty(l.qty)}
+                  {l.unit ? ` ${l.unit}` : ''} × {money(l.unit_price_minor)}
+                </P>
+              </View>
+              <P style={{ fontWeight: '600' }}>{money(l.line_total_minor)}</P>
             </View>
-            <P style={{ fontWeight: '600' }}>{money(l.line_total_minor)}</P>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <View style={styles.totals}>
@@ -158,6 +176,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: PAPER.border,
   },
+  period: { marginTop: Spacing.three, padding: Spacing.three, backgroundColor: '#F0F3F9', borderRadius: 6 },
   totals: { marginTop: Spacing.two, gap: Spacing.one },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   grand: { borderTopWidth: 2, borderColor: PAPER.text, marginTop: Spacing.one, paddingTop: Spacing.two },

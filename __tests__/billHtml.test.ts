@@ -26,10 +26,15 @@ const bill: BillWithLines = {
   total_minor: 27000,
   status: 'unpaid',
   paid_at: null,
+  client_id: null,
+  customer_address: '',
+  period_start: null,
+  period_end: null,
+  detail_fields: [],
   created_at: '2026-10-11 10:00:00',
   lines: [
-    { description: 'Per km fare', qty: 12.4, unit: 'km', unit_price_minor: 1500, line_total_minor: 18600 },
-    { description: 'Waiting <1hr>', qty: 1, unit: 'hr', unit_price_minor: 9000, line_total_minor: 9000 },
+    { description: 'Per km fare', qty: 12.4, unit: 'km', unit_price_minor: 1500, line_total_minor: 18600, entry_date: null, details: {} },
+    { description: 'Waiting <1hr>', qty: 1, unit: 'hr', unit_price_minor: 9000, line_total_minor: 9000, entry_date: null, details: {} },
   ],
 };
 
@@ -75,5 +80,37 @@ describe('billToHtml', () => {
     expect(paid).toContain('class="stamp">PAID');
     expect(paid).not.toContain('Scan to pay');
     expect(html).not.toContain('class="stamp"');
+  });
+
+  it('prints address, period, dates and trade columns on period bills', () => {
+    const period = billToHtml(
+      {
+        ...bill,
+        customer_address: 'MIDC\nPune',
+        period_start: '2026-10-01',
+        period_end: '2026-10-31',
+        detail_fields: [
+          { key: 'from', label: 'From' },
+          { key: 'vehicle', label: 'Vehicle no.' },
+        ],
+        lines: [
+          { ...bill.lines[0], entry_date: '2026-10-03', details: { from: 'Pune', vehicle: 'MH12 <AB>' } },
+          { ...bill.lines[1], entry_date: '2026-10-04', details: {} },
+        ],
+      },
+      profile,
+    );
+    expect(period).toContain('MIDC<br/>Pune');
+    expect(period).toContain('Billing period');
+    expect(period).toContain('October 2026');
+    expect(period).toContain('<th>Date</th>');
+    expect(period).toContain('<th>From</th><th>Vehicle no.</th>');
+    expect(period).toContain('3 Oct 2026');
+    expect(period).toContain('MH12 &lt;AB&gt;');
+  });
+
+  it('keeps the simple layout for ordinary bills', () => {
+    expect(html).not.toContain('<th>Date</th>');
+    expect(html).not.toContain('Billing period');
   });
 });

@@ -11,6 +11,7 @@ import { deleteItem, listItems, saveItem } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/money';
+import { unitsFor } from '@/lib/presets';
 import type { Item } from '@/types';
 
 export default function Items() {
@@ -85,6 +86,7 @@ export default function Items() {
       <ItemFormModal
         visible={formOpen}
         item={editing}
+        units={unitsFor(profile?.trade ?? 'general', editing?.unit)}
         onClose={() => setFormOpen(false)}
         onDelete={confirmDelete}
         onSave={async (v) => {

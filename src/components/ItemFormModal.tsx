@@ -5,7 +5,7 @@ import { Button, Chip, Field, Row, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { minorToInput, parseAmount } from '@/lib/money';
-import { UNITS, type Item, type Unit } from '@/types';
+import type { Item, Unit } from '@/types';
 
 type SaveFn = (v: { id?: number; name: string; price_minor: number; unit: Unit }) => Promise<void>;
 
@@ -15,10 +15,13 @@ export function ItemFormModal({
   onClose,
   onSave,
   onDelete,
+  units,
 }: {
   visible: boolean;
   /** null = creating a new item */
   item: Item | null;
+  /** unit chips to offer, from the business type (see unitsFor) */
+  units: Unit[];
   onClose: () => void;
   onSave: SaveFn;
   onDelete?: (id: number) => void;
@@ -32,7 +35,14 @@ export function ItemFormModal({
         <View style={[styles.sheet, { backgroundColor: c.card }]}>
           {/* Keyed so each open starts with fresh state from `item`. */}
           {visible ? (
-            <ItemForm key={item?.id ?? 'new'} item={item} onClose={onClose} onSave={onSave} onDelete={onDelete} />
+            <ItemForm
+              key={item?.id ?? 'new'}
+              item={item}
+              units={units}
+              onClose={onClose}
+              onSave={onSave}
+              onDelete={onDelete}
+            />
           ) : null}
         </View>
       </KeyboardAvoidingView>
@@ -42,18 +52,20 @@ export function ItemFormModal({
 
 function ItemForm({
   item,
+  units,
   onClose,
   onSave,
   onDelete,
 }: {
   item: Item | null;
+  units: Unit[];
   onClose: () => void;
   onSave: SaveFn;
   onDelete?: (id: number) => void;
 }) {
   const [name, setName] = useState(item?.name ?? '');
   const [price, setPrice] = useState(item ? minorToInput(item.price_minor) : '');
-  const [unit, setUnit] = useState<Unit>(item?.unit ?? 'pcs');
+  const [unit, setUnit] = useState<Unit>(item?.unit ?? units[0]);
   const [errors, setErrors] = useState<{ name?: string; price?: string }>({});
 
   async function save() {
@@ -89,7 +101,7 @@ function ItemForm({
       <View style={{ gap: Spacing.two }}>
         <T muted style={{ fontSize: 13 }}>Unit</T>
         <Row style={{ flexWrap: 'wrap' }}>
-          {UNITS.map((u) => (
+          {units.map((u) => (
             <Chip key={u} label={u} selected={unit === u} onPress={() => setUnit(u)} />
           ))}
         </Row>

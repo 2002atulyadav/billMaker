@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 import { BillNumberCard } from '@/components/BillNumberCard';
+import { BusinessTypeCard } from '@/components/BusinessTypeCard';
 import { ProfileForm } from '@/components/ProfileForm';
 import { Spacing } from '@/constants/theme';
 import { saveProfile } from '@/db/repo';
@@ -26,6 +27,7 @@ export default function Settings() {
             Alert.alert('Saved', 'Your business profile has been updated.');
           }}
         />
+        <BusinessTypeCard trade={profile.trade} />
         <BillNumberCard version={savedCount} />
       </ScrollView>
     </KeyboardAvoidingView>

@@ -41,6 +41,11 @@ const bill: Bill = {
   total_minor: 27000,
   status: 'unpaid',
   paid_at: null,
+  client_id: null,
+  customer_address: '',
+  period_start: null,
+  period_end: null,
+  detail_fields: [],
   created_at: '2026-10-11 10:00:00',
 };
 
@@ -55,6 +60,12 @@ describe('billMessage', () => {
     expect(msg).toContain('Paid. Thank you!');
     expect(msg).not.toContain('UPI');
   });
+  it('mentions the billing period on period bills', () => {
+    expect(billMessage({ ...bill, period_start: '2026-10-01', period_end: '2026-10-31', date: '2026-10-31' }, profile)).toContain(
+      'Bill TX-0001 from Ravi Taxi for October 2026 (31 Oct 2026).',
+    );
+  });
+
   it('skips the UPI line when no UPI ID is set', () => {
     expect(billMessage(bill, { ...profile, upi_id: '' })).not.toContain('UPI');
   });

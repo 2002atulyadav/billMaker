@@ -1,4 +1,5 @@
 import { formatDate, formatMoney } from '@/lib/money';
+import { formatPeriod } from '@/lib/period';
 import type { Bill, Profile } from '@/types';
 
 /**
@@ -20,7 +21,9 @@ export function billMessage(bill: Bill, profile: Profile): string {
   const total = formatMoney(bill.total_minor, profile.currency);
   const lines = [
     bill.customer_name ? `Hi ${bill.customer_name},` : 'Hi,',
-    `Bill ${bill.bill_no} from ${profile.business_name} dated ${formatDate(bill.date)}.`,
+    bill.period_start && bill.period_end
+      ? `Bill ${bill.bill_no} from ${profile.business_name} for ${formatPeriod({ start: bill.period_start, end: bill.period_end })} (${formatDate(bill.date)}).`
+      : `Bill ${bill.bill_no} from ${profile.business_name} dated ${formatDate(bill.date)}.`,
     bill.status === 'paid' ? `Total: ${total} — Paid. Thank you!` : `Amount due: ${total}`,
   ];
   if (bill.status !== 'paid' && profile.upi_id) lines.push(`Pay by UPI: ${profile.upi_id}`);

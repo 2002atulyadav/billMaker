@@ -1,6 +1,8 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { computeTotals, formatBillNo, lineTotal, minNextBillNo } from '@/lib/money';
+import { periodBillDraft } from '@/lib/entries';
+import type { Period } from '@/lib/period';
 import { presetFor } from '@/lib/presets';
 import type {
   Bill,
@@ -8,12 +10,25 @@ import type {
   BillLine,
   BillStatus,
   BillWithLines,
+  Client,
+  DetailField,
+  Details,
+  Entry,
   Item,
   Profile,
   ProfileInput,
   Trade,
   Unit,
 } from '@/types';
+
+/** JSON columns are written by this app, but never let a bad value crash a screen. */
+function parseJson<T>(text: string | null | undefined, fallback: T): T {
+  try {
+    return text ? (JSON.parse(text) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // ---- profile ----
 
@@ -49,6 +64,27 @@ export async function completeOnboarding(db: SQLiteDatabase, p: ProfileInput, tr
       );
     }
   });
+}
+
+/**
+ * Changes the business type. Only affects units and entry fields offered from now on; existing data is untouched.
+ * With addItems, the trade's starter items are added, skipping names that already exist.
+ */
+export async function setTrade(db: SQLiteDatabase, trade: Trade, addItems = false): Promise<number> {
+  let added = 0;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('UPDATE profile SET trade = ? WHERE id = 1', trade);
+    if (!addItems) return;
+    for (const item of presetFor(trade).items) {
+      const res = await txn.runAsync(
+        `INSERT INTO items (name, price_minor, unit)
+         SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM items WHERE lower(name) = lower(?))`,
+        item.name, item.price_minor, item.unit, item.name,
+      );
+      added += res.changes;
+    }
+  });
+  return added;
 }
 
 /** Lowest value setNextBillNo will accept for the current prefix. */
@@ -105,15 +141,22 @@ export function likePattern(search: string): string {
   return `%${search.trim().replace(/[\\%_]/g, (ch) => '\\' + ch)}%`;
 }
 
-export function listBills(db: SQLiteDatabase, search: string, filter: BillFilter = 'all'): Promise<Bill[]> {
+type BillRow = Omit<Bill, 'detail_fields'> & { detail_fields: string };
+
+function toBill(row: BillRow): Bill {
+  return { ...row, detail_fields: parseJson<DetailField[]>(row.detail_fields, []) };
+}
+
+export async function listBills(db: SQLiteDatabase, search: string, filter: BillFilter = 'all'): Promise<Bill[]> {
   const q = likePattern(search);
-  return db.getAllAsync<Bill>(
+  const rows = await db.getAllAsync<BillRow>(
     `SELECT * FROM bills
      WHERE (bill_no LIKE ?1 ESCAPE '\\' OR customer_name LIKE ?1 ESCAPE '\\' OR customer_phone LIKE ?1 ESCAPE '\\')
        AND (?2 = 'all' OR status = ?2)
      ORDER BY id DESC`,
     q, filter,
   );
+  return rows.map(toBill);
 }
 
 /** Total still owed across all unpaid bills. */
@@ -147,48 +190,169 @@ export function listRecentCustomers(db: SQLiteDatabase, limit = 50): Promise<Rec
 }
 
 export async function getBill(db: SQLiteDatabase, id: number): Promise<BillWithLines | null> {
-  const bill = await db.getFirstAsync<Bill>('SELECT * FROM bills WHERE id = ?', id);
-  if (!bill) return null;
-  const lines = await db.getAllAsync<BillLine>(
-    `SELECT description, qty, unit, unit_price_minor, line_total_minor
+  const row = await db.getFirstAsync<BillRow>('SELECT * FROM bills WHERE id = ?', id);
+  if (!row) return null;
+  const lines = await db.getAllAsync<Omit<BillLine, 'details'> & { details: string }>(
+    `SELECT description, qty, unit, unit_price_minor, line_total_minor, entry_date, details
      FROM bill_items WHERE bill_id = ? ORDER BY position`,
     id,
   );
-  return { ...bill, lines };
+  return { ...toBill(row), lines: lines.map((l) => ({ ...l, details: parseJson<Details>(l.details, {}) })) };
 }
 
 /**
- * Allocates the next bill number and writes the bill and its lines atomically.
- * Totals are recomputed here rather than trusted from the UI.
+ * Allocates the next bill number and writes the bill and its lines. Must run inside an exclusive
+ * transaction so two saves can't take the same number. Totals are recomputed rather than trusted from the UI.
  */
-export async function createBill(db: SQLiteDatabase, draft: BillDraft): Promise<number> {
+async function insertBill(txn: SQLiteDatabase, draft: BillDraft): Promise<number> {
   const totals = computeTotals(draft.lines, draft.discount_minor);
+  const p = await txn.getFirstAsync<{ bill_prefix: string; next_bill_no: number }>(
+    'SELECT bill_prefix, next_bill_no FROM profile WHERE id = 1',
+  );
+  if (!p) throw new Error('Business profile is not set up');
+  const billNo = formatBillNo(p.bill_prefix, p.next_bill_no);
+  const res = await txn.runAsync(
+    `INSERT INTO bills (bill_no, customer_name, customer_phone, customer_address, client_id, date, discount_minor, notes,
+                        subtotal_minor, total_minor, period_start, period_end, detail_fields)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    billNo, draft.customer_name, draft.customer_phone, draft.customer_address ?? '', draft.client_id ?? null,
+    draft.date, totals.discount, draft.notes, totals.subtotal, totals.total,
+    draft.period_start ?? null, draft.period_end ?? null, JSON.stringify(draft.detail_fields ?? []),
+  );
+  const billId = res.lastInsertRowId;
+  for (const [i, l] of draft.lines.entries()) {
+    await txn.runAsync(
+      `INSERT INTO bill_items (bill_id, position, description, qty, unit, unit_price_minor, line_total_minor, entry_date, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      billId, i, l.description, l.qty, l.unit, l.unit_price_minor, lineTotal(l.qty, l.unit_price_minor),
+      l.entry_date ?? null, JSON.stringify(l.details ?? {}),
+    );
+  }
+  await txn.runAsync('UPDATE profile SET next_bill_no = next_bill_no + 1 WHERE id = 1');
+  return billId;
+}
+
+export async function createBill(db: SQLiteDatabase, draft: BillDraft): Promise<number> {
   let billId = 0;
   await db.withExclusiveTransactionAsync(async (txn) => {
-    const p = await txn.getFirstAsync<{ bill_prefix: string; next_bill_no: number }>(
-      'SELECT bill_prefix, next_bill_no FROM profile WHERE id = 1',
-    );
-    if (!p) throw new Error('Business profile is not set up');
-    const billNo = formatBillNo(p.bill_prefix, p.next_bill_no);
-    const res = await txn.runAsync(
-      `INSERT INTO bills (bill_no, customer_name, customer_phone, date, discount_minor, notes, subtotal_minor, total_minor)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      billNo, draft.customer_name, draft.customer_phone, draft.date,
-      totals.discount, draft.notes, totals.subtotal, totals.total,
-    );
-    billId = res.lastInsertRowId;
-    for (const [i, l] of draft.lines.entries()) {
-      await txn.runAsync(
-        `INSERT INTO bill_items (bill_id, position, description, qty, unit, unit_price_minor, line_total_minor)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        billId, i, l.description, l.qty, l.unit, l.unit_price_minor, lineTotal(l.qty, l.unit_price_minor),
-      );
-    }
-    await txn.runAsync('UPDATE profile SET next_bill_no = next_bill_no + 1 WHERE id = 1');
+    billId = await insertBill(txn, draft);
   });
   return billId;
 }
 
+/** Deleting a period bill puts its entries back to unbilled (entries.bill_id is ON DELETE SET NULL). */
 export async function deleteBill(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync('DELETE FROM bills WHERE id = ?', id);
+}
+
+// ---- clients ----
+
+export type ClientSummary = Client & { unbilled_count: number; unbilled_minor: number };
+
+export function listClients(db: SQLiteDatabase): Promise<ClientSummary[]> {
+  // ROUND matches lineTotal() (Math.round) for the non-negative amounts we store.
+  return db.getAllAsync<ClientSummary>(
+    `SELECT c.id, c.name, c.phone, c.address,
+            COUNT(e.id) AS unbilled_count,
+            COALESCE(SUM(CAST(ROUND(e.qty * e.unit_price_minor) AS INTEGER)), 0) AS unbilled_minor
+     FROM clients c LEFT JOIN entries e ON e.client_id = c.id AND e.bill_id IS NULL
+     GROUP BY c.id
+     ORDER BY c.name COLLATE NOCASE`,
+  );
+}
+
+export function getClient(db: SQLiteDatabase, id: number): Promise<Client | null> {
+  return db.getFirstAsync<Client>('SELECT id, name, phone, address FROM clients WHERE id = ?', id);
+}
+
+export async function saveClient(db: SQLiteDatabase, c: Omit<Client, 'id'> & { id?: number }): Promise<number> {
+  if (c.id) {
+    await db.runAsync('UPDATE clients SET name = ?, phone = ?, address = ? WHERE id = ?', c.name, c.phone, c.address, c.id);
+    return c.id;
+  }
+  const res = await db.runAsync('INSERT INTO clients (name, phone, address) VALUES (?, ?, ?)', c.name, c.phone, c.address);
+  return res.lastInsertRowId;
+}
+
+/** Removes the client and their entries. Bills already made keep their own copy of the client details. */
+export async function deleteClient(db: SQLiteDatabase, id: number): Promise<void> {
+  await db.runAsync('DELETE FROM clients WHERE id = ?', id);
+}
+
+// ---- work entries ----
+
+type EntryRow = Omit<Entry, 'details'> & { details: string };
+
+export async function listEntries(db: SQLiteDatabase, clientId: number): Promise<Entry[]> {
+  const rows = await db.getAllAsync<EntryRow>(
+    `SELECT e.id, e.client_id, e.date, e.description, e.qty, e.unit, e.unit_price_minor, e.details, e.bill_id, b.bill_no
+     FROM entries e LEFT JOIN bills b ON b.id = e.bill_id
+     WHERE e.client_id = ?
+     ORDER BY e.date DESC, e.id DESC`,
+    clientId,
+  );
+  return rows.map((r) => ({ ...r, details: parseJson<Details>(r.details, {}) }));
+}
+
+export type EntryInput = Pick<Entry, 'client_id' | 'date' | 'description' | 'qty' | 'unit' | 'unit_price_minor' | 'details'> & {
+  id?: number;
+};
+
+/** Billed entries are locked: they're part of a bill that may already have been sent. */
+export async function saveEntry(db: SQLiteDatabase, e: EntryInput): Promise<void> {
+  const details = JSON.stringify(e.details);
+  if (e.id) {
+    const res = await db.runAsync(
+      `UPDATE entries SET date = ?, description = ?, qty = ?, unit = ?, unit_price_minor = ?, details = ?
+       WHERE id = ? AND bill_id IS NULL`,
+      e.date, e.description, e.qty, e.unit, e.unit_price_minor, details, e.id,
+    );
+    if (res.changes === 0) throw new Error('This entry is already billed and can’t be changed.');
+    return;
+  }
+  await db.runAsync(
+    `INSERT INTO entries (client_id, date, description, qty, unit, unit_price_minor, details) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    e.client_id, e.date, e.description, e.qty, e.unit, e.unit_price_minor, details,
+  );
+}
+
+export async function deleteEntry(db: SQLiteDatabase, id: number): Promise<void> {
+  const res = await db.runAsync('DELETE FROM entries WHERE id = ? AND bill_id IS NULL', id);
+  if (res.changes === 0) throw new Error('This entry is already billed. Delete the bill first to change it.');
+}
+
+/**
+ * Turns a client's unbilled entries in the period into one bill and marks them billed, atomically,
+ * so an entry can never land on two bills.
+ */
+export async function createPeriodBill(db: SQLiteDatabase, clientId: number, period: Period, date: string): Promise<number> {
+  let billId = 0;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const client = await getClient(txn, clientId);
+    if (!client) throw new Error('Client not found');
+    const profile = await txn.getFirstAsync<{ trade: Trade }>('SELECT trade FROM profile WHERE id = 1');
+    const rows = await txn.getAllAsync<EntryRow>(
+      `SELECT id, client_id, date, description, qty, unit, unit_price_minor, details, bill_id, NULL AS bill_no
+       FROM entries WHERE client_id = ? AND bill_id IS NULL AND date BETWEEN ? AND ?
+       ORDER BY date, id`,
+      clientId, period.start, period.end,
+    );
+    if (rows.length === 0) throw new Error('No unbilled entries in this period.');
+    const entries = rows.map((r) => ({ ...r, details: parseJson<Details>(r.details, {}) }));
+    const fields = presetFor(profile?.trade ?? 'general').entryFields;
+    billId = await insertBill(txn, periodBillDraft({ client, entries, period, fields, date }));
+    for (const e of entries) {
+      await txn.runAsync('UPDATE entries SET bill_id = ? WHERE id = ?', billId, e.id);
+    }
+  });
+  return billId;
+}
+
+/** Bills made for a client in a period, oldest first, for a statement of account. */
+export async function listClientBills(db: SQLiteDatabase, clientId: number, period: Period): Promise<Bill[]> {
+  const rows = await db.getAllAsync<BillRow>(
+    `SELECT * FROM bills WHERE client_id = ? AND date BETWEEN ? AND ? ORDER BY date, id`,
+    clientId, period.start, period.end,
+  );
+  return rows.map(toBill);
 }

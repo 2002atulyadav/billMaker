@@ -58,6 +58,35 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE profile ADD COLUMN trade TEXT NOT NULL DEFAULT 'general';
   `,
+  `
+  CREATE TABLE clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    date TEXT NOT NULL,
+    description TEXT NOT NULL,
+    qty REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT '',
+    unit_price_minor INTEGER NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    bill_id INTEGER REFERENCES bills(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_entries_client ON entries(client_id, bill_id, date);
+  ALTER TABLE bills ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL;
+  ALTER TABLE bills ADD COLUMN customer_address TEXT NOT NULL DEFAULT '';
+  ALTER TABLE bills ADD COLUMN period_start TEXT;
+  ALTER TABLE bills ADD COLUMN period_end TEXT;
+  ALTER TABLE bills ADD COLUMN detail_fields TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE bill_items ADD COLUMN entry_date TEXT;
+  ALTER TABLE bill_items ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
