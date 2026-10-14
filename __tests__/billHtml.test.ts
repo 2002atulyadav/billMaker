@@ -9,6 +9,7 @@ const profile: Profile = {
   logo_uri: null,
   currency: '₹',
   bill_prefix: 'TX-',
+  upi_id: '',
   next_bill_no: 2,
 };
 
@@ -22,6 +23,8 @@ const bill: BillWithLines = {
   notes: 'Paid via UPI',
   subtotal_minor: 27600,
   total_minor: 27000,
+  status: 'unpaid',
+  paid_at: null,
   created_at: '2026-10-11 10:00:00',
   lines: [
     { description: 'Per km fare', qty: 12.4, unit: 'km', unit_price_minor: 1500, line_total_minor: 18600 },
@@ -56,5 +59,20 @@ describe('billToHtml', () => {
   it('only embeds data: URI logos', () => {
     expect(billToHtml(bill, { ...profile, logo_uri: 'file:///x.png' })).not.toContain('<img');
     expect(billToHtml(bill, { ...profile, logo_uri: 'data:image/png;base64,AAA' })).toContain('<img');
+  });
+
+  it('shows a UPI QR for unpaid bills when a UPI ID is set', () => {
+    const withUpi = billToHtml(bill, { ...profile, upi_id: 'ravi@okhdfc' });
+    expect(withUpi).toContain('Scan to pay');
+    expect(withUpi).toContain('<svg');
+    expect(withUpi).toContain('UPI ID: ravi@okhdfc');
+    expect(html).not.toContain('Scan to pay');
+  });
+
+  it('stamps paid bills and drops the pay block', () => {
+    const paid = billToHtml({ ...bill, status: 'paid', paid_at: '2026-10-12 09:00:00' }, { ...profile, upi_id: 'ravi@okhdfc' });
+    expect(paid).toContain('class="stamp">PAID');
+    expect(paid).not.toContain('Scan to pay');
+    expect(html).not.toContain('class="stamp"');
   });
 });

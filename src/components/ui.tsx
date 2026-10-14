@@ -14,6 +14,7 @@ import {
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import type { BillStatus } from '@/types';
 
 export function T({ style, muted, ...props }: TextProps & { muted?: boolean }) {
   const c = useTheme();
@@ -119,6 +120,19 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
   );
 }
 
+/** Small pill showing whether a bill is paid. */
+export function StatusBadge({ status }: { status: BillStatus }) {
+  const c = useTheme();
+  const color = status === 'paid' ? c.success : c.warning;
+  return (
+    <View style={[styles.badge, { borderColor: color }]}>
+      <Text style={{ color, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
+        {status === 'paid' ? 'PAID' : 'UNPAID'}
+      </Text>
+    </View>
+  );
+}
+
 export function EmptyState({ title, message }: { title: string; message: string }) {
   return (
     <View style={styles.empty}>
@@ -140,5 +154,6 @@ const styles = StyleSheet.create({
   button: { borderRadius: 10, paddingVertical: 13, paddingHorizontal: Spacing.four, alignItems: 'center' },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  badge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start' },
   empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.six },
 });

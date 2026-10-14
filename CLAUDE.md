@@ -10,11 +10,11 @@ Offline billing app (Expo SDK 57, React Native, TypeScript): business profile â†
 
 ## Commands
 
-Uses npm (`package-lock.json`), so use `npx`, not `bunx`. Requires Node 20.19+.
+Uses npm (`package-lock.json`), so use `npx`, not `bunx`. Requires Node 20.19+; the shell defaults to Node 18, so run `source ~/.nvm/nvm.sh && nvm use 22` first.
 
 ```bash
 npx expo start                       # dev server (Expo Go works; no custom native modules)
-npm test                             # jest (jest-expo preset), tests in __tests__/
+npm test                             # jest (jest-expo preset), tests in __tests__/ (pure lib code only)
 npx jest __tests__/money.test.ts     # single file
 npx jest -t "formatMoney"            # single test by name
 npm run typecheck                    # tsc --noEmit
@@ -29,6 +29,7 @@ npm run lint                         # expo lint
 - **Bill lines are snapshots**: `bill_items` copies description/price, so editing or deleting a saved item never changes past bills. Bills are not editable; only create, duplicate, or delete.
 - **Money**: always integer minor units (`*_minor` columns/fields, paise). Use the helpers in `src/lib/money.ts` (`parseAmount`, `formatMoney`, `lineTotal`, `computeTotals`) and never use float rupees. Quantities can be fractional. Dates are stored as local `YYYY-MM-DD` strings.
 - **PDF**: `src/lib/billHtml.ts` builds a self-contained HTML string (all user text goes through `esc()`). `src/lib/pdf.ts` renders it with `expo-print`, renames the file to `Bill-<bill_no>.pdf` via the new `expo-file-system` `File`/`Paths` API, then calls `expo-sharing`. The logo is stored as a `data:` base64 URI in `profile.logo_uri` so it can be embedded in the PDF without file access.
+- **Getting paid**: `bills.status` is `'unpaid' | 'paid'` (`setBillStatus`). When `profile.upi_id` is set, unpaid bills carry a UPI QR (`src/lib/upi.ts`: `upiLink` builds the NPCI `upi://pay` link and `qrMatrix` turns it into an SVG path). `src/components/BillPaper.tsx` is the in-app bill and mirrors the PDF layout in `billHtml.ts`, so **change both together**. It always renders in light colors because it's captured with `react-native-view-shot` for "Share image". WhatsApp sending uses `https://wa.me/<phone>?text=` (`src/lib/whatsapp.ts`); deep links can't attach files, so the PDF and image go through the share sheet.
 - **Data refresh**: `useProfile()` and list screens reload in `useFocusEffect`, so returning to a screen picks up changes made elsewhere. `useProfile` returns `undefined` while loading and `null` when no profile exists.
 - **UI**: shared primitives (`T`, `Card`, `Button`, `Field`, `Row`, `SectionTitle`) are in `src/components/ui.tsx`. Colors come from `useTheme()` (`src/constants/theme.ts`, light/dark). Path alias: `@/*` â†’ `src/*`.
 - `app.json` enables `typedRoutes` and `reactCompiler`.

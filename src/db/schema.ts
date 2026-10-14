@@ -50,6 +50,11 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_bill_items_bill ON bill_items(bill_id);
   `,
+  `
+  ALTER TABLE profile ADD COLUMN upi_id TEXT NOT NULL DEFAULT '';
+  ALTER TABLE bills ADD COLUMN status TEXT NOT NULL DEFAULT 'unpaid';
+  ALTER TABLE bills ADD COLUMN paid_at TEXT;
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

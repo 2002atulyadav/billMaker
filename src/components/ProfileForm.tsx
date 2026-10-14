@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Field, Row, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { isValidUpiId } from '@/lib/upi';
 import type { ProfileInput } from '@/types';
 
 const EMPTY: ProfileInput = {
@@ -16,6 +17,7 @@ const EMPTY: ProfileInput = {
   logo_uri: null,
   currency: '₹',
   bill_prefix: 'INV-',
+  upi_id: '',
 };
 
 export function ProfileForm({
@@ -30,6 +32,7 @@ export function ProfileForm({
   const c = useTheme();
   const [p, setP] = useState<ProfileInput>(initial ?? EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [upiError, setUpiError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const set = <K extends keyof ProfileInput>(k: K, v: ProfileInput[K]) => setP((prev) => ({ ...prev, [k]: v }));
@@ -47,11 +50,11 @@ export function ProfileForm({
   }
 
   async function submit() {
-    if (!p.business_name.trim()) {
-      setError('Business name is required');
-      return;
-    }
-    setError(null);
+    const nameErr = p.business_name.trim() ? null : 'Business name is required';
+    const upiErr = !p.upi_id.trim() || isValidUpiId(p.upi_id) ? null : 'Enter a UPI ID like yourname@okhdfc';
+    setError(nameErr);
+    setUpiError(upiErr);
+    if (nameErr || upiErr) return;
     setSaving(true);
     try {
       await onSubmit({
@@ -62,6 +65,7 @@ export function ProfileForm({
         address: p.address.trim(),
         currency: p.currency.trim() || '₹',
         bill_prefix: p.bill_prefix.trim(),
+        upi_id: p.upi_id.trim(),
       });
     } finally {
       setSaving(false);
@@ -119,6 +123,23 @@ export function ProfileForm({
           </View>
         </Row>
         <T muted style={{ fontSize: 12 }}>Bills will be numbered {p.bill_prefix}0001, {p.bill_prefix}0002, …</T>
+      </Card>
+
+      <Card>
+        <SectionTitle>Get paid</SectionTitle>
+        <Field
+          label="UPI ID (optional)"
+          placeholder="e.g. yourname@okhdfc"
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          value={p.upi_id}
+          onChangeText={(v) => set('upi_id', v)}
+          error={upiError}
+        />
+        <T muted style={{ fontSize: 12 }}>
+          Unpaid bills will show a QR code your customer can scan with GPay, PhonePe, Paytm or any UPI app.
+        </T>
       </Card>
 
       <Button title={submitLabel} onPress={submit} loading={saving} />

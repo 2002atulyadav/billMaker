@@ -8,6 +8,8 @@ export const Colors = {
     primary: '#1F6FEB',
     primaryText: '#FFFFFF',
     danger: '#D93036',
+    success: '#1A7F37',
+    warning: '#9A6700',
     chip: '#EEF3FE',
   },
   dark: {
@@ -19,6 +21,8 @@ export const Colors = {
     primary: '#4C8DF6',
     primaryText: '#FFFFFF',
     danger: '#FF6369',
+    success: '#3FB950',
+    warning: '#D29922',
     chip: '#1B2433',
   },
 } as const;

@@ -1,4 +1,5 @@
-import { formatDate, formatMoney } from '@/lib/money';
+import { formatDate, formatMoney, formatQty } from '@/lib/money';
+import { qrSvg, upiLink } from '@/lib/upi';
 import type { BillWithLines, Profile } from '@/types';
 
 function esc(s: string): string {
@@ -14,10 +15,6 @@ function nl2br(s: string): string {
   return esc(s).replace(/\n/g, '<br/>');
 }
 
-function fmtQty(q: number): string {
-  return Number.isInteger(q) ? String(q) : String(Number(q.toFixed(3)));
-}
-
 /** Self-contained HTML (no external assets) rendered to PDF by expo-print. */
 export function billToHtml(bill: BillWithLines, profile: Profile): string {
   const money = (m: number) => esc(formatMoney(m, profile.currency));
@@ -28,7 +25,7 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
       <tr>
         <td class="num">${i + 1}</td>
         <td>${esc(l.description)}</td>
-        <td class="r">${fmtQty(l.qty)}${l.unit ? ' ' + esc(l.unit) : ''}</td>
+        <td class="r">${formatQty(l.qty)}${l.unit ? ' ' + esc(l.unit) : ''}</td>
         <td class="r">${money(l.unit_price_minor)}</td>
         <td class="r">${money(l.line_total_minor)}</td>
       </tr>`,
@@ -38,6 +35,19 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
   const logo = profile.logo_uri?.startsWith('data:')
     ? `<img class="logo" src="${profile.logo_uri}" />`
     : '';
+
+  const isPaid = bill.status === 'paid';
+  const payBlock =
+    !isPaid && profile.upi_id && bill.total_minor > 0
+      ? `<div class="pay">
+           ${qrSvg(upiLink({ upiId: profile.upi_id, payeeName: profile.business_name, amountMinor: bill.total_minor, note: bill.bill_no }), 132)}
+           <div>
+             <div class="label">Scan to pay with any UPI app</div>
+             <div class="strong">${money(bill.total_minor)}</div>
+             <div class="muted">UPI ID: ${esc(profile.upi_id)}</div>
+           </div>
+         </div>`
+      : '';
 
   const customer =
     bill.customer_name || bill.customer_phone
@@ -71,6 +81,9 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
   .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
   .grand { border-top: 2px solid #111; margin-top: 4px; padding-top: 8px !important; font-size: 17px; font-weight: 700; }
   .notes { margin-top: 24px; padding: 12px; background: #F7F8FA; border-radius: 6px; }
+  .pay { display: flex; gap: 16px; align-items: center; margin-top: 24px; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; page-break-inside: avoid; }
+  .pay .strong { font-size: 18px; }
+  .stamp { display: inline-block; margin-top: 8px; padding: 4px 12px; border: 2px solid #1A7F37; color: #1A7F37; border-radius: 6px; font-weight: 700; letter-spacing: 2px; transform: rotate(-6deg); }
   .thanks { text-align: center; margin-top: 40px; color: #60646C; }
 </style></head>
 <body>
@@ -88,6 +101,7 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
       <h1>BILL</h1>
       <div class="strong">${esc(bill.bill_no)}</div>
       <div class="muted">${esc(formatDate(bill.date))}</div>
+      ${isPaid ? '<div class="stamp">PAID</div>' : ''}
     </div>
   </div>
 
@@ -103,6 +117,8 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
     ${bill.discount_minor > 0 ? `<div><span>Discount</span><span>-${money(bill.discount_minor)}</span></div>` : ''}
     <div class="grand"><span>Total</span><span>${money(bill.total_minor)}</span></div>
   </div>
+
+  ${payBlock}
 
   ${bill.notes ? `<div class="notes"><div class="label">Notes</div>${nl2br(bill.notes)}</div>` : ''}
 

@@ -5,6 +5,7 @@ import {
   formatMoney,
   isValidISODate,
   lineTotal,
+  minorToDecimal,
   minorToInput,
   parseAmount,
   parseQty,
@@ -56,6 +57,14 @@ describe('formatMoney', () => {
   });
   it('handles negatives', () => {
     expect(formatMoney(-150, '₹')).toBe('-₹1.50');
+  });
+});
+
+describe('minorToDecimal', () => {
+  it('always has two decimals and no grouping', () => {
+    expect(minorToDecimal(125005)).toBe('1250.05');
+    expect(minorToDecimal(27000)).toBe('270.00');
+    expect(minorToDecimal(5)).toBe('0.05');
   });
 });
 

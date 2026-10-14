@@ -1,13 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { computeTotals, formatBillNo, lineTotal } from '@/lib/money';
-import type { Bill, BillDraft, BillLine, BillWithLines, Item, Profile, ProfileInput, Unit } from '@/types';
+import type { Bill, BillDraft, BillLine, BillStatus, BillWithLines, Item, Profile, ProfileInput, Unit } from '@/types';
 
 // ---- profile ----
 
 export function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
   return db.getFirstAsync<Profile>(
-    `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, next_bill_no
+    `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id, next_bill_no
      FROM profile WHERE id = 1`,
   );
 }
@@ -15,13 +15,13 @@ export function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
 /** Upsert; never touches next_bill_no so the bill numbering survives profile edits. */
 export async function saveProfile(db: SQLiteDatabase, p: ProfileInput): Promise<void> {
   await db.runAsync(
-    `INSERT INTO profile (id, business_name, owner_name, phone, address, logo_uri, currency, bill_prefix)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO profile (id, business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        business_name = excluded.business_name, owner_name = excluded.owner_name,
        phone = excluded.phone, address = excluded.address, logo_uri = excluded.logo_uri,
-       currency = excluded.currency, bill_prefix = excluded.bill_prefix`,
-    p.business_name, p.owner_name, p.phone, p.address, p.logo_uri, p.currency, p.bill_prefix,
+       currency = excluded.currency, bill_prefix = excluded.bill_prefix, upi_id = excluded.upi_id`,
+    p.business_name, p.owner_name, p.phone, p.address, p.logo_uri, p.currency, p.bill_prefix, p.upi_id,
   );
 }
 
@@ -54,13 +54,36 @@ export async function deleteItem(db: SQLiteDatabase, id: number): Promise<void> 
 
 // ---- bills ----
 
-export function listBills(db: SQLiteDatabase, search: string): Promise<Bill[]> {
-  const q = `%${search.trim()}%`;
+export type BillFilter = 'all' | BillStatus;
+
+/** Escapes LIKE wildcards so searching for "50%" or "A_1" matches literally. */
+export function likePattern(search: string): string {
+  return `%${search.trim().replace(/[\\%_]/g, (ch) => '\\' + ch)}%`;
+}
+
+export function listBills(db: SQLiteDatabase, search: string, filter: BillFilter = 'all'): Promise<Bill[]> {
+  const q = likePattern(search);
   return db.getAllAsync<Bill>(
     `SELECT * FROM bills
-     WHERE bill_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?
+     WHERE (bill_no LIKE ?1 ESCAPE '\\' OR customer_name LIKE ?1 ESCAPE '\\' OR customer_phone LIKE ?1 ESCAPE '\\')
+       AND (?2 = 'all' OR status = ?2)
      ORDER BY id DESC`,
-    q, q, q,
+    q, filter,
+  );
+}
+
+/** Total still owed across all unpaid bills. */
+export async function getUnpaidSummary(db: SQLiteDatabase): Promise<{ count: number; total_minor: number }> {
+  const row = await db.getFirstAsync<{ count: number; total_minor: number | null }>(
+    `SELECT COUNT(*) AS count, SUM(total_minor) AS total_minor FROM bills WHERE status = 'unpaid'`,
+  );
+  return { count: row?.count ?? 0, total_minor: row?.total_minor ?? 0 };
+}
+
+export async function setBillStatus(db: SQLiteDatabase, id: number, status: BillStatus): Promise<void> {
+  await db.runAsync(
+    `UPDATE bills SET status = ?, paid_at = CASE WHEN ? = 'paid' THEN datetime('now') ELSE NULL END WHERE id = ?`,
+    status, status, id,
   );
 }
 

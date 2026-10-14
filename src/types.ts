@@ -10,6 +10,8 @@ export type Profile = {
   logo_uri: string | null;
   currency: string;
   bill_prefix: string;
+  /** e.g. "ravi@okhdfc"; empty when not set. Used for the "Scan to pay" QR. */
+  upi_id: string;
   next_bill_no: number;
 };
 
@@ -41,8 +43,13 @@ export type Bill = {
   notes: string;
   subtotal_minor: number;
   total_minor: number;
+  status: BillStatus;
+  /** datetime('now') when marked paid, else null */
+  paid_at: string | null;
   created_at: string;
 };
+
+export type BillStatus = 'unpaid' | 'paid';
 
 export type BillWithLines = Bill & { lines: BillLine[] };
 

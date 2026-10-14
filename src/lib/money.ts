@@ -27,6 +27,11 @@ export function minorToInput(minor: number): string {
   return (minor / 100).toFixed(2).replace(/\.00$/, '');
 }
 
+/** 125005 -> "1250.05" (always two decimals, no grouping), for machine-readable amounts. */
+export function minorToDecimal(minor: number): string {
+  return `${Math.floor(minor / 100)}.${String(minor % 100).padStart(2, '0')}`;
+}
+
 /** 125000 -> "₹1,250.00" using Indian digit grouping. */
 export function formatMoney(minor: number, currency: string): string {
   const negative = minor < 0;
@@ -37,6 +42,11 @@ export function formatMoney(minor: number, currency: string): string {
   const rest = whole.slice(0, -3);
   const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3;
   return `${negative ? '-' : ''}${currency}${grouped}.${frac}`;
+}
+
+/** 12.4000001 -> "12.4", 3 -> "3" (at most 3 decimals, no trailing zeros). */
+export function formatQty(q: number): string {
+  return Number.isInteger(q) ? String(q) : String(Number(q.toFixed(3)));
 }
 
 export function lineTotal(qty: number, unitPriceMinor: number): number {
