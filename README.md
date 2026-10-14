@@ -1,56 +1,41 @@
-# Welcome to your Expo app 👋
+# Bill Maker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Simple offline billing app for shopkeepers, taxi drivers and freelancers: save your items and
+rates, create a bill, and share it as a PDF over WhatsApp, email, or any other app.
 
-## Get started
+Built with Expo SDK 57 (React Native + TypeScript). All data stays on the phone (SQLite).
 
-1. Install dependencies
+## Run it
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Requires Node 20.19+ (`nvm use 22`).
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with **Expo Go** (Android) or the Camera app (iOS).
 
-### Other setup steps
+```bash
+npm test            # unit tests (money math, bill HTML)
+npm run typecheck
+npm run lint
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## How it works
 
-## Learn more
+| Screen | File |
+|---|---|
+| First-launch business setup | `src/app/onboarding.tsx` |
+| Bills history + search | `src/app/(tabs)/index.tsx` |
+| Saved items & rates | `src/app/(tabs)/items.tsx` |
+| Business profile / settings | `src/app/(tabs)/settings.tsx` |
+| Create bill (also used for "Duplicate") | `src/app/bill/new.tsx` |
+| Bill detail → Share PDF / Duplicate / Delete | `src/app/bill/[id].tsx` |
 
-To learn more about developing your project with Expo, look at the following resources:
+- `src/db/schema.ts` – tables and versioned migrations (`PRAGMA user_version`)
+- `src/db/repo.ts` – queries; `createBill` allocates the bill number inside an exclusive transaction
+- `src/lib/money.ts` – money held as integer paise; Indian digit grouping
+- `src/lib/billHtml.ts` + `src/lib/pdf.ts` – HTML template → `expo-print` PDF → `expo-sharing`
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Bill lines are copied into the bill, so editing or deleting a saved item never changes past bills.
