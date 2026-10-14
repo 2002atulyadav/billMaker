@@ -10,12 +10,14 @@ import { Spacing } from '@/constants/theme';
 import { listClients, saveClient, type ClientSummary } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { formatMoney } from '@/lib/money';
 
 export default function Clients() {
   const db = useSQLiteContext();
   const c = useTheme();
   const profile = useProfile();
+  const { t } = useT();
   const [clients, setClients] = useState<ClientSummary[] | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -36,8 +38,8 @@ export default function Clients() {
         ListEmptyComponent={
           clients === null ? null : (
             <EmptyState
-              title="No clients yet"
-              message="Add the companies or people you work for regularly. Log each trip or job as you go, then send one bill for the month or year."
+              title={t('clients.empty')}
+              message={t('clients.emptyHint')}
             />
           )
         }
@@ -56,11 +58,11 @@ export default function Clients() {
               <View style={{ alignItems: 'flex-end' }}>
                 <T style={{ fontWeight: '700' }}>{formatMoney(item.unbilled_minor, currency)}</T>
                 <T muted style={{ fontSize: 12 }}>
-                  {item.unbilled_count} unbilled
+                  {t('clients.unbilledCount', { count: item.unbilled_count })}
                 </T>
               </View>
             ) : (
-              <T muted style={{ fontSize: 13 }}>All billed</T>
+              <T muted style={{ fontSize: 13 }}>{t('clients.allBilled')}</T>
             )}
             <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
           </Pressable>
@@ -68,7 +70,7 @@ export default function Clients() {
       />
       <View style={styles.fab}>
         <Button
-          title="Add client"
+          title={t('clients.add')}
           icon={<Ionicons name="person-add-outline" size={20} color={c.primaryText} />}
           onPress={() => setFormOpen(true)}
         />

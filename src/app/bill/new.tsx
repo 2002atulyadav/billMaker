@@ -11,6 +11,8 @@ import { Spacing } from '@/constants/theme';
 import { createBill, getBill, listClients, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
+import { errorText } from '@/lib/errors';
 import { isSameCustomer, suggestCustomers } from '@/lib/customers';
 import {
   computeTotals,
@@ -30,6 +32,7 @@ type LineErrors = { description?: boolean; qty?: boolean; price?: boolean };
 export default function NewBill() {
   const db = useSQLiteContext();
   const c = useTheme();
+  const { t, unit: unitLabel } = useT();
   const profile = useProfile();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const nextKey = useRef(1);
@@ -130,10 +133,10 @@ export default function NewBill() {
     setLineErrors(errs);
 
     let msg: string | null = null;
-    if (lines.length === 0) msg = 'Add at least one item to the bill.';
-    else if (Object.keys(errs).length) msg = 'Fix the highlighted item fields.';
-    else if (discount.trim() && parseAmount(discount) === null) msg = 'Discount must be a valid amount.';
-    else if (!isValidISODate(date)) msg = 'Pick a valid date.';
+    if (lines.length === 0) msg = t('newBill.errNoItems');
+    else if (Object.keys(errs).length) msg = t('newBill.errLines');
+    else if (discount.trim() && parseAmount(discount) === null) msg = t('newBill.errDiscount');
+    else if (!isValidISODate(date)) msg = t('newBill.errDate');
     setFormError(msg);
     if (msg) return;
 
@@ -157,7 +160,7 @@ export default function NewBill() {
       });
       router.replace({ pathname: '/bill/[id]', params: { id: String(id) } });
     } catch (e) {
-      Alert.alert('Could not save bill', e instanceof Error ? e.message : String(e));
+      Alert.alert(t('newBill.saveFailed'), errorText(t, e));
       setSaving(false);
     }
   }
@@ -169,9 +172,9 @@ export default function NewBill() {
       keyboardVerticalOffset={100}>
       <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.four }} keyboardShouldPersistTaps="handled">
         <Card>
-          <SectionTitle>Customer (optional)</SectionTitle>
-          <Field placeholder="Customer name" value={customerName} onChangeText={setCustomerName} />
-          <Field placeholder="Phone" keyboardType="phone-pad" value={customerPhone} onChangeText={setCustomerPhone} />
+          <SectionTitle>{t('newBill.customer')}</SectionTitle>
+          <Field placeholder={t('newBill.customerName')} value={customerName} onChangeText={setCustomerName} />
+          <Field placeholder={t('newBill.phone')} keyboardType="phone-pad" value={customerPhone} onChangeText={setCustomerPhone} />
           {suggestions.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Row>
@@ -191,17 +194,17 @@ export default function NewBill() {
           ) : null}
           {knownCustomer && lines.length === 0 ? (
             <Button
-              title="Repeat their last bill"
+              title={t('newBill.repeatLast')}
               variant="secondary"
               icon={<Ionicons name="repeat" size={18} color={c.primary} />}
               onPress={() => repeatLastBill(knownCustomer.last_bill_id)}
             />
           ) : null}
-          <DateField label="Date" value={date} onChange={setDate} />
+          <DateField label={t('newBill.date')} value={date} onChange={setDate} />
         </Card>
 
         <Card>
-          <SectionTitle>Items</SectionTitle>
+          <SectionTitle>{t('newBill.items')}</SectionTitle>
           {lines.map((l, i) => {
             const e = lineErrors[l.key] ?? {};
             const amount = lineTotal(parseQty(l.qty) ?? 0, parseAmount(l.price) ?? 0);
@@ -211,33 +214,33 @@ export default function NewBill() {
                   <T muted style={{ width: 20 }}>{i + 1}.</T>
                   <View style={{ flex: 1 }}>
                     <Field
-                      placeholder="Item / service"
+                      placeholder={t('newBill.itemPlaceholder')}
                       value={l.description}
                       onChangeText={(v) => updateLine(l.key, { description: v })}
-                      error={e.description ? 'Required' : null}
+                      error={e.description ? t('common.required') : null}
                     />
                   </View>
-                  <Pressable onPress={() => removeLine(l.key)} hitSlop={10} accessibilityLabel="Remove item">
+                  <Pressable onPress={() => removeLine(l.key)} hitSlop={10} accessibilityLabel={t('newBill.removeItem')}>
                     <Ionicons name="close-circle" size={22} color={c.textSecondary} />
                   </Pressable>
                 </Row>
                 <Row style={{ paddingLeft: 28, alignItems: 'flex-start' }}>
                   <View style={{ flex: 1 }}>
                     <Field
-                      label={`Qty${l.unit ? ` (${l.unit})` : ''}`}
+                      label={`${t('newBill.qty')}${l.unit ? ` (${unitLabel(l.unit)})` : ''}`}
                       keyboardType="decimal-pad"
                       value={l.qty}
                       onChangeText={(v) => updateLine(l.key, { qty: v })}
-                      error={e.qty ? 'Invalid' : null}
+                      error={e.qty ? t('common.invalid') : null}
                     />
                   </View>
                   <View style={{ flex: 1.3 }}>
                     <Field
-                      label={`Rate (${currency})`}
+                      label={t('newBill.rate', { currency })}
                       keyboardType="decimal-pad"
                       value={l.price}
                       onChangeText={(v) => updateLine(l.key, { price: v })}
-                      error={e.price ? 'Invalid' : null}
+                      error={e.price ? t('common.invalid') : null}
                     />
                   </View>
                 </Row>
@@ -247,14 +250,14 @@ export default function NewBill() {
           })}
           <Row>
             <Button
-              title="Saved item"
+              title={t('newBill.savedItem')}
               variant="secondary"
               style={{ flex: 1 }}
               icon={<Ionicons name="list" size={18} color={c.primary} />}
               onPress={() => setPickerOpen(true)}
             />
             <Button
-              title="Custom"
+              title={t('newBill.custom')}
               variant="secondary"
               style={{ flex: 1 }}
               icon={<Ionicons name="add" size={18} color={c.primary} />}
@@ -265,34 +268,34 @@ export default function NewBill() {
 
         <Card>
           <Field
-            label={`Discount (${currency}, optional)`}
+            label={t('newBill.discount', { currency })}
             keyboardType="decimal-pad"
             placeholder="0"
             value={discount}
             onChangeText={setDiscount}
           />
-          <Field label="Notes (optional)" multiline placeholder="e.g. Paid via UPI" value={notes} onChangeText={setNotes} />
+          <Field label={t('newBill.notes')} multiline placeholder={t('newBill.notesPlaceholder')} value={notes} onChangeText={setNotes} />
         </Card>
 
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>
-            <T muted>Subtotal</T>
+            <T muted>{t('newBill.subtotal')}</T>
             <T>{formatMoney(totals.subtotal, currency)}</T>
           </Row>
           {totals.discount > 0 ? (
             <Row style={{ justifyContent: 'space-between' }}>
-              <T muted>Discount</T>
+              <T muted>{t('newBill.discountLabel')}</T>
               <T>-{formatMoney(totals.discount, currency)}</T>
             </Row>
           ) : null}
           <Row style={{ justifyContent: 'space-between' }}>
-            <T style={{ fontSize: 18, fontWeight: '700' }}>Total</T>
+            <T style={{ fontSize: 18, fontWeight: '700' }}>{t('newBill.total')}</T>
             <T style={{ fontSize: 22, fontWeight: '700' }}>{formatMoney(totals.total, currency)}</T>
           </Row>
         </Card>
 
         {formError ? <T style={{ color: c.danger, textAlign: 'center' }}>{formError}</T> : null}
-        <Button title="Save bill" onPress={save} loading={saving} />
+        <Button title={t('newBill.save')} onPress={save} loading={saving} />
       </ScrollView>
 
       <ItemPickerModal

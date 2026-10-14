@@ -11,6 +11,8 @@ const profile: Profile = {
   bill_prefix: 'TX-',
   upi_id: '',
   trade: 'taxi',
+  language: 'en',
+  bill_language: 'en',
   next_bill_no: 2,
 };
 

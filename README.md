@@ -4,6 +4,7 @@ Simple offline billing app for shopkeepers, taxi drivers and freelancers: save y
 rates, create a bill, and share it as a PDF over WhatsApp, email, or any other app.
 
 Built with Expo SDK 57 (React Native + TypeScript). All data stays on the phone (SQLite).
+Available in English and Hindi. Bills can be printed in English, Hindi or both.
 
 ## Run it
 

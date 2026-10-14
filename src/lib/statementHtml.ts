@@ -1,3 +1,4 @@
+import { makeBillTranslator, type Translator } from '@/i18n';
 import { BASE_CSS, businessHead, esc, nl2br, payBlock } from '@/lib/billHtml';
 import { formatDate, formatMoney, todayISO } from '@/lib/money';
 import { formatPeriod, type Period } from '@/lib/period';
@@ -26,9 +27,14 @@ export function statementToHtml(opts: {
   bills: Bill[];
   unbilled: { count: number; total_minor: number };
   today?: string;
+  /** defaults to the profile's bill language */
+  tr?: Translator;
 }): string {
   const { profile, client, period, bills, unbilled } = opts;
+  const tr = opts.tr ?? makeBillTranslator(profile.bill_language);
   const money = (m: number) => esc(formatMoney(m, profile.currency));
+  const date = (iso: string) => esc(formatDate(iso, tr.lang));
+  const periodLabel = (p: Period) => esc(formatPeriod(p, tr.lang));
   const t = statementTotals(bills);
 
   const rows = bills.length
@@ -36,18 +42,20 @@ export function statementToHtml(opts: {
         .map(
           (b) => `
       <tr>
-        <td class="nowrap">${esc(formatDate(b.date))}</td>
+        <td class="nowrap">${date(b.date)}</td>
         <td>${esc(b.bill_no)}</td>
-        <td>${b.period_start && b.period_end ? esc(formatPeriod({ start: b.period_start, end: b.period_end })) : ''}</td>
+        <td>${b.period_start && b.period_end ? periodLabel({ start: b.period_start, end: b.period_end }) : ''}</td>
         <td class="r">${money(b.total_minor)}</td>
-        <td class="r ${b.status === 'paid' ? 'ok' : 'due'}">${b.status === 'paid' ? 'Paid' : 'Unpaid'}</td>
+        <td class="r ${b.status === 'paid' ? 'ok' : 'due'}">${esc(
+          tr.t(b.status === 'paid' ? 'pdf.statusPaid' : 'pdf.statusUnpaid'),
+        )}</td>
       </tr>`,
         )
         .join('')
-    : `<tr><td colspan="5" class="muted">No bills in this period.</td></tr>`;
+    : `<tr><td colspan="5" class="muted">${esc(tr.t('pdf.noBills'))}</td></tr>`;
 
   return `<!doctype html>
-<html><head><meta charset="utf-8"/>
+<html lang="${tr.lang}"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
 ${BASE_CSS}
@@ -56,13 +64,13 @@ ${BASE_CSS}
 </style></head>
 <body>
   ${businessHead(profile, `
-      <h1>STATEMENT</h1>
-      <div class="strong">${esc(formatPeriod(period))}</div>
-      <div class="muted">Issued ${esc(formatDate(opts.today ?? todayISO()))}</div>`)}
+      <h1>${esc(tr.t('pdf.statement'))}</h1>
+      <div class="strong">${periodLabel(period)}</div>
+      <div class="muted">${esc(tr.t('pdf.issued', { date: formatDate(opts.today ?? todayISO(), tr.lang) }))}</div>`)}
 
   <div class="meta">
     <div>
-      <div class="label">Statement for</div>
+      <div class="label">${esc(tr.t('pdf.statementFor'))}</div>
       <div class="strong">${esc(client.name)}</div>
       ${client.address ? `<div class="muted">${nl2br(client.address)}</div>` : ''}
       ${client.phone ? `<div>${esc(client.phone)}</div>` : ''}
@@ -70,26 +78,28 @@ ${BASE_CSS}
   </div>
 
   <table>
-    <thead><tr><th>Date</th><th>Bill no.</th><th>For period</th><th class="r">Amount</th><th class="r">Status</th></tr></thead>
+    <thead><tr><th>${esc(tr.t('pdf.date'))}</th><th>${esc(tr.t('pdf.billNo'))}</th><th>${esc(
+      tr.t('pdf.forPeriod'),
+    )}</th><th class="r">${esc(tr.t('pdf.amount'))}</th><th class="r">${esc(tr.t('pdf.status'))}</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
 
   <div class="totals">
-    <div><span>Total billed</span><span>${money(t.billed_minor)}</span></div>
-    <div><span>Paid</span><span>${money(t.paid_minor)}</span></div>
-    <div class="grand"><span>Outstanding</span><span>${money(t.outstanding_minor)}</span></div>
+    <div><span>${esc(tr.t('pdf.totalBilled'))}</span><span>${money(t.billed_minor)}</span></div>
+    <div><span>${esc(tr.t('pdf.statusPaid'))}</span><span>${money(t.paid_minor)}</span></div>
+    <div class="grand"><span>${esc(tr.t('pdf.outstanding'))}</span><span>${money(t.outstanding_minor)}</span></div>
   </div>
 
   ${
     unbilled.count > 0
-      ? `<div class="notes"><div class="label">Not yet billed</div>${unbilled.count} ${
-          unbilled.count === 1 ? 'entry' : 'entries'
-        } worth ${money(unbilled.total_minor)} will appear on your next bill.</div>`
+      ? `<div class="notes"><div class="label">${esc(tr.t('pdf.notYetBilled'))}</div>${esc(
+          tr.tn('pdf.notYetBilledText', unbilled.count, { amount: formatMoney(unbilled.total_minor, profile.currency) }),
+        )}</div>`
       : ''
   }
 
-  ${payBlock(profile, t.outstanding_minor, `${client.name} statement`.slice(0, 50))}
+  ${payBlock(profile, t.outstanding_minor, `${client.name} statement`.slice(0, 50), tr)}
 
-  <div class="thanks">Thank you for your business!</div>
+  <div class="thanks">${esc(tr.t('pdf.thanks'))}</div>
 </body></html>`;
 }

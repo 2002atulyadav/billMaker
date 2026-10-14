@@ -1,3 +1,4 @@
+import { makeTranslator } from '@/i18n';
 import { formatDate, formatMoney } from '@/lib/money';
 import { formatPeriod } from '@/lib/period';
 import type { Bill, Profile } from '@/types';
@@ -16,17 +17,23 @@ export function waPhone(raw: string): string | null {
   return null;
 }
 
-/** Short text bill for WhatsApp: who, what, how much, and how to pay. */
+/**
+ * Short text bill for WhatsApp: who, what, how much, and how to pay. Written in Hindi when bills are
+ * in Hindi; a bilingual chat message would be too long, so "both" uses English.
+ */
 export function billMessage(bill: Bill, profile: Profile): string {
+  const lang = profile.bill_language === 'hi' ? 'hi' : 'en';
+  const { t } = makeTranslator(lang);
   const total = formatMoney(bill.total_minor, profile.currency);
+  const vars = { billNo: bill.bill_no, business: profile.business_name, date: formatDate(bill.date, lang) };
   const lines = [
-    bill.customer_name ? `Hi ${bill.customer_name},` : 'Hi,',
+    bill.customer_name ? t('wa.hiName', { name: bill.customer_name }) : t('wa.hi'),
     bill.period_start && bill.period_end
-      ? `Bill ${bill.bill_no} from ${profile.business_name} for ${formatPeriod({ start: bill.period_start, end: bill.period_end })} (${formatDate(bill.date)}).`
-      : `Bill ${bill.bill_no} from ${profile.business_name} dated ${formatDate(bill.date)}.`,
-    bill.status === 'paid' ? `Total: ${total} — Paid. Thank you!` : `Amount due: ${total}`,
+      ? t('wa.billPeriod', { ...vars, period: formatPeriod({ start: bill.period_start, end: bill.period_end }, lang) })
+      : t('wa.billDated', vars),
+    bill.status === 'paid' ? t('wa.paid', { total }) : t('wa.due', { total }),
   ];
-  if (bill.status !== 'paid' && profile.upi_id) lines.push(`Pay by UPI: ${profile.upi_id}`);
+  if (bill.status !== 'paid' && profile.upi_id) lines.push(t('wa.upi', { upi: profile.upi_id }));
   return lines.join('\n');
 }
 

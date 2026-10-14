@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } f
 import { Button, Chip, Field, Row, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { minorToInput, parseAmount } from '@/lib/money';
 import type { Item, Unit } from '@/types';
 
@@ -67,12 +68,13 @@ function ItemForm({
   const [price, setPrice] = useState(item ? minorToInput(item.price_minor) : '');
   const [unit, setUnit] = useState<Unit>(item?.unit ?? units[0]);
   const [errors, setErrors] = useState<{ name?: string; price?: string }>({});
+  const { t, unit: unitLabel } = useT();
 
   async function save() {
     const price_minor = parseAmount(price);
     const next = {
-      name: name.trim() ? undefined : 'Name is required',
-      price: price_minor === null ? 'Enter a valid price, e.g. 120 or 15.50' : undefined,
+      name: name.trim() ? undefined : t('items.nameRequired'),
+      price: price_minor === null ? t('items.priceInvalid') : undefined,
     };
     setErrors(next);
     if (next.name || next.price || price_minor === null) return;
@@ -81,17 +83,17 @@ function ItemForm({
 
   return (
     <ScrollView contentContainerStyle={{ gap: Spacing.four }} keyboardShouldPersistTaps="handled">
-      <T style={{ fontSize: 20, fontWeight: '700' }}>{item ? 'Edit item' : 'New item'}</T>
+      <T style={{ fontSize: 20, fontWeight: '700' }}>{t(item ? 'items.edit' : 'items.new')}</T>
       <Field
-        label="Name"
-        placeholder="e.g. Per km fare, Rice 1kg, Haircut"
+        label={t('items.name')}
+        placeholder={t('items.namePlaceholder')}
         value={name}
         onChangeText={setName}
         error={errors.name}
         autoFocus={!item}
       />
       <Field
-        label="Price"
+        label={t('items.price')}
         placeholder="0.00"
         keyboardType="decimal-pad"
         value={price}
@@ -99,18 +101,18 @@ function ItemForm({
         error={errors.price}
       />
       <View style={{ gap: Spacing.two }}>
-        <T muted style={{ fontSize: 13 }}>Unit</T>
+        <T muted style={{ fontSize: 13 }}>{t('items.unit')}</T>
         <Row style={{ flexWrap: 'wrap' }}>
           {units.map((u) => (
-            <Chip key={u} label={u} selected={unit === u} onPress={() => setUnit(u)} />
+            <Chip key={u} label={unitLabel(u)} selected={unit === u} onPress={() => setUnit(u)} />
           ))}
         </Row>
       </View>
       <Row>
-        <Button title="Cancel" variant="secondary" onPress={onClose} style={{ flex: 1 }} />
-        <Button title="Save" onPress={save} style={{ flex: 1 }} />
+        <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
+        <Button title={t('common.save')} onPress={save} style={{ flex: 1 }} />
       </Row>
-      {item && onDelete ? <Button title="Delete item" variant="danger" onPress={() => onDelete(item.id)} /> : null}
+      {item && onDelete ? <Button title={t('items.delete')} variant="danger" onPress={() => onDelete(item.id)} /> : null}
     </ScrollView>
   );
 }

@@ -11,6 +11,8 @@ const profile: Profile = {
   bill_prefix: 'TR-',
   upi_id: 'shree@okhdfc',
   trade: 'transport',
+  language: 'en',
+  bill_language: 'en',
   next_bill_no: 4,
 };
 const client: Client = { id: 1, name: 'ABC <Logistics>', phone: '9876543210', address: 'MIDC\nPune' };

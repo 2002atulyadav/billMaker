@@ -7,8 +7,10 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Chip, EmptyState, Field, Row, StatusBadge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { getUnpaidSummary, listBills, type BillFilter } from '@/db/repo';
+import type { TKey } from '@/i18n';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { formatDate, formatMoney } from '@/lib/money';
 import type { Bill } from '@/types';
 
@@ -16,6 +18,7 @@ export default function Bills() {
   const db = useSQLiteContext();
   const c = useTheme();
   const profile = useProfile();
+  const { t, tn, lang } = useT();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<BillFilter>('all');
   const [bills, setBills] = useState<Bill[] | null>(null);
@@ -48,7 +51,7 @@ export default function Bills() {
                 onPress={() => setFilter('unpaid')}
                 style={[styles.dues, { backgroundColor: c.card, borderColor: c.warning }]}>
                 <T muted style={{ fontSize: 13 }}>
-                  To collect · {unpaid.count} unpaid {unpaid.count === 1 ? 'bill' : 'bills'}
+                  {t('bills.toCollect')} · {tn('common.bills', unpaid.count)}
                 </T>
                 <T style={{ fontSize: 22, fontWeight: '700', color: c.warning }}>
                   {formatMoney(unpaid.total_minor, currency)}
@@ -56,23 +59,23 @@ export default function Bills() {
               </Pressable>
             ) : null}
             <Field
-              placeholder="Search by customer, phone or bill no."
+              placeholder={t('bills.search')}
               value={search}
               onChangeText={setSearch}
               clearButtonMode="while-editing"
             />
             <Row>
               {FILTERS.map((f) => (
-                <Chip key={f.value} label={f.label} selected={filter === f.value} onPress={() => setFilter(f.value)} />
+                <Chip key={f.value} label={t(f.label)} selected={filter === f.value} onPress={() => setFilter(f.value)} />
               ))}
             </Row>
           </View>
         }
         ListEmptyComponent={
           bills === null ? null : search || filter !== 'all' ? (
-            <EmptyState title="No bills found" message="Try a different search or filter." />
+            <EmptyState title={t('bills.noneFound')} message={t('bills.noneFoundHint')} />
           ) : (
-            <EmptyState title="No bills yet" message="Tap “New bill” to create your first bill and share it as a PDF." />
+            <EmptyState title={t('bills.empty')} message={t('bills.emptyHint')} />
           )
         }
         renderItem={({ item }) => (
@@ -83,9 +86,9 @@ export default function Bills() {
               { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.7 : 1 },
             ]}>
             <View style={{ flex: 1, gap: 2 }}>
-              <T style={{ fontWeight: '600' }}>{item.customer_name || 'Walk-in customer'}</T>
+              <T style={{ fontWeight: '600' }}>{item.customer_name || t('common.walkIn')}</T>
               <T muted style={{ fontSize: 13 }}>
-                {item.bill_no} · {formatDate(item.date)}
+                {item.bill_no} · {formatDate(item.date, lang)}
               </T>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -97,7 +100,7 @@ export default function Bills() {
       />
       <View style={styles.fab}>
         <Button
-          title="New bill"
+          title={t('bills.new')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => router.push('/bill/new')}
         />
@@ -106,11 +109,11 @@ export default function Bills() {
   );
 }
 
-const FILTERS: { value: BillFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'unpaid', label: 'Unpaid' },
-  { value: 'paid', label: 'Paid' },
-];
+const FILTERS = [
+  { value: 'all', label: 'bills.filterAll' },
+  { value: 'unpaid', label: 'bills.filterUnpaid' },
+  { value: 'paid', label: 'bills.filterPaid' },
+] as const satisfies readonly { value: BillFilter; label: TKey }[];
 
 const styles = StyleSheet.create({
   dues: { padding: Spacing.four, borderRadius: 12, borderWidth: 1, gap: 2 },

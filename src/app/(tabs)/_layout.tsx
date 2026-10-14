@@ -3,9 +3,11 @@ import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/tabs';
 
 import { useProfile } from '@/hooks/use-profile';
+import { useT } from '@/i18n/I18nProvider';
 
 export default function TabsLayout() {
   const profile = useProfile();
+  const { t } = useT();
   if (profile === undefined) return null;
   if (profile === null) return <Redirect href="/onboarding" />;
 
@@ -14,30 +16,30 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Bills',
+          title: t('nav.bills'),
           tabBarIcon: ({ color, size }) => <Ionicons name="receipt-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="clients"
         options={{
-          title: 'Clients',
+          title: t('nav.clients'),
           tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="items"
         options={{
-          title: 'Items & Rates',
-          tabBarLabel: 'Items',
+          title: t('nav.itemsTitle'),
+          tabBarLabel: t('nav.items'),
           tabBarIcon: ({ color, size }) => <Ionicons name="pricetags-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Business profile',
-          tabBarLabel: 'Settings',
+          title: t('nav.settingsTitle'),
+          tabBarLabel: t('nav.settings'),
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
         }}
       />

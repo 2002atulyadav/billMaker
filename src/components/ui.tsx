@@ -14,6 +14,7 @@ import {
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import type { BillStatus } from '@/types';
 
 export function T({ style, muted, ...props }: TextProps & { muted?: boolean }) {
@@ -123,11 +124,12 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
 /** Small pill showing whether a bill is paid. */
 export function StatusBadge({ status }: { status: BillStatus }) {
   const c = useTheme();
+  const { t } = useT();
   const color = status === 'paid' ? c.success : c.warning;
   return (
     <View style={[styles.badge, { borderColor: color }]}>
       <Text style={{ color, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
-        {status === 'paid' ? 'PAID' : 'UNPAID'}
+        {t(status === 'paid' ? 'common.paid' : 'common.unpaid')}
       </Text>
     </View>
   );

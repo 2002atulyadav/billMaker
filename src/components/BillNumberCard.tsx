@@ -4,11 +4,14 @@ import { Alert } from 'react-native';
 
 import { Button, Card, Field, SectionTitle, T } from '@/components/ui';
 import { getMinNextBillNo, getProfile, setNextBillNo } from '@/db/repo';
+import { useT } from '@/i18n/I18nProvider';
+import { errorText } from '@/lib/errors';
 import { formatBillNo } from '@/lib/money';
 
 /** Shows and edits the next bill number. `version` changes after a profile save so a new prefix is picked up. */
 export function BillNumberCard({ version }: { version: number }) {
   const db = useSQLiteContext();
+  const { t } = useT();
   const [prefix, setPrefix] = useState('');
   const [current, setCurrent] = useState<number | null>(null);
   const [min, setMin] = useState(1);
@@ -32,7 +35,7 @@ export function BillNumberCard({ version }: { version: number }) {
 
   async function save() {
     if (n === null || n < 1) {
-      setError('Enter a whole number like 101');
+      setError(t('numbering.invalid'));
       return;
     }
     setError(null);
@@ -40,9 +43,9 @@ export function BillNumberCard({ version }: { version: number }) {
     try {
       await setNextBillNo(db, n);
       setCurrent(n);
-      Alert.alert('Saved', `Your next bill will be ${formatBillNo(prefix, n)}.`);
+      Alert.alert(t('common.saved'), t('numbering.saved', { billNo: formatBillNo(prefix, n) }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorText(t, e));
     } finally {
       setSaving(false);
     }
@@ -50,9 +53,9 @@ export function BillNumberCard({ version }: { version: number }) {
 
   return (
     <Card>
-      <SectionTitle>Bill numbering</SectionTitle>
+      <SectionTitle>{t('numbering.title')}</SectionTitle>
       <Field
-        label="Next bill number"
+        label={t('numbering.next')}
         keyboardType="number-pad"
         value={value}
         onChangeText={setValue}
@@ -60,10 +63,10 @@ export function BillNumberCard({ version }: { version: number }) {
         maxLength={7}
       />
       <T muted style={{ fontSize: 12 }}>
-        {n !== null && n >= 1 ? `Next bill will be ${formatBillNo(prefix, n)}. ` : ''}
-        Coming from a paper bill book? Set this to continue your numbering. Must be {min} or higher.
+        {n !== null && n >= 1 ? `${t('numbering.preview', { billNo: formatBillNo(prefix, n) })} ` : ''}
+        {t('numbering.hint', { min })}
       </T>
-      {n !== current ? <Button title="Update numbering" variant="secondary" onPress={save} loading={saving} /> : null}
+      {n !== current ? <Button title={t('numbering.update')} variant="secondary" onPress={save} loading={saving} /> : null}
     </Card>
   );
 }

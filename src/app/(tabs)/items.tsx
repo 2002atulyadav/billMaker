@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { deleteItem, listItems, saveItem } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { formatMoney } from '@/lib/money';
 import { unitsFor } from '@/lib/presets';
 import type { Item } from '@/types';
@@ -18,6 +19,7 @@ export default function Items() {
   const db = useSQLiteContext();
   const c = useTheme();
   const profile = useProfile();
+  const { t, unit } = useT();
   const [items, setItems] = useState<Item[]>([]);
   const [editing, setEditing] = useState<Item | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -35,10 +37,10 @@ export default function Items() {
   };
 
   const confirmDelete = (id: number) =>
-    Alert.alert('Delete item?', 'Bills already created will not change.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('items.deleteTitle'), t('items.deleteMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           await deleteItem(db, id);
@@ -56,8 +58,8 @@ export default function Items() {
         contentContainerStyle={{ padding: Spacing.four, gap: Spacing.two, paddingBottom: 120 }}
         ListEmptyComponent={
           <EmptyState
-            title="No saved items yet"
-            message="Save the things you charge for — products, per-km fare, waiting charge — so adding them to a bill takes one tap."
+            title={t('items.empty')}
+            message={t('items.emptyHint')}
           />
         }
         renderItem={({ item }) => (
@@ -70,7 +72,7 @@ export default function Items() {
             <T style={{ flex: 1, fontWeight: '500' }}>{item.name}</T>
             <T>
               {formatMoney(item.price_minor, profile?.currency ?? '₹')}
-              <T muted> / {item.unit}</T>
+              <T muted> / {unit(item.unit)}</T>
             </T>
             <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
           </Pressable>
@@ -78,7 +80,7 @@ export default function Items() {
       />
       <View style={styles.fab}>
         <Button
-          title="Add item"
+          title={t('items.add')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => open(null)}
         />

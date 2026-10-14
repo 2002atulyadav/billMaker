@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { Sheet } from '@/components/Sheet';
 import { Button, Field, Row } from '@/components/ui';
+import { useT } from '@/i18n/I18nProvider';
 import type { Client } from '@/types';
 
 type ClientInput = Omit<Client, 'id'> & { id?: number };
@@ -20,8 +21,9 @@ export function ClientFormModal({
   onSave: (c: ClientInput) => Promise<void>;
   onDelete?: (id: number) => void;
 }) {
+  const { t } = useT();
   return (
-    <Sheet visible={visible} title={client ? 'Edit client' : 'New client'} onClose={onClose}>
+    <Sheet visible={visible} title={t(client ? 'clients.edit' : 'clients.new')} onClose={onClose}>
       <ClientForm client={client} onClose={onClose} onSave={onSave} onDelete={onDelete} />
     </Sheet>
   );
@@ -43,10 +45,11 @@ function ClientForm({
   const [address, setAddress] = useState(client?.address ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { t } = useT();
 
   async function save() {
     if (!name.trim()) {
-      setError('Client name is required');
+      setError(t('clients.nameRequired'));
       return;
     }
     setSaving(true);
@@ -60,20 +63,20 @@ function ClientForm({
   return (
     <>
       <Field
-        label="Client / company name *"
-        placeholder="e.g. ABC Logistics Pvt Ltd"
+        label={t('clients.name')}
+        placeholder={t('clients.namePlaceholder')}
         value={name}
         onChangeText={setName}
         error={error}
         autoFocus={!client}
       />
-      <Field label="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-      <Field label="Address (printed on bills)" multiline value={address} onChangeText={setAddress} />
+      <Field label={t('profile.phone')} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+      <Field label={t('clients.address')} multiline value={address} onChangeText={setAddress} />
       <Row>
-        <Button title="Cancel" variant="secondary" onPress={onClose} style={{ flex: 1 }} />
-        <Button title="Save" onPress={save} loading={saving} style={{ flex: 1 }} />
+        <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
+        <Button title={t('common.save')} onPress={save} loading={saving} style={{ flex: 1 }} />
       </Row>
-      {client && onDelete ? <Button title="Delete client" variant="danger" onPress={() => onDelete(client.id)} /> : null}
+      {client && onDelete ? <Button title={t('clients.delete')} variant="danger" onPress={() => onDelete(client.id)} /> : null}
     </>
   );
 }

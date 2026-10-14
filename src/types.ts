@@ -14,11 +14,19 @@ export type Profile = {
   upi_id: string;
   /** chosen at onboarding; see src/lib/presets.ts */
   trade: Trade;
+  /** app UI language */
+  language: Lang;
+  /** language of bill/statement labels; 'both' prints "Total / कुल" */
+  bill_language: BillLang;
   next_bill_no: number;
 };
 
-/** What the profile form edits. Trade and bill numbering have their own setters. */
-export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade'>;
+/** What the profile form edits. Trade, languages and bill numbering have their own setters. */
+export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade' | 'language' | 'bill_language'>;
+
+export const LANGS = ['en', 'hi'] as const;
+export type Lang = (typeof LANGS)[number];
+export type BillLang = Lang | 'both';
 
 export const TRADES = ['transport', 'taxi', 'tutor', 'repair', 'tailor', 'freelancer', 'shop', 'general'] as const;
 export type Trade = (typeof TRADES)[number];

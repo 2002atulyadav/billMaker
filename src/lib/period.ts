@@ -1,17 +1,18 @@
 import { formatDate, isoToDate, todayISO } from '@/lib/money';
+import type { Lang } from '@/types';
 
 /** Inclusive date range, both ends "YYYY-MM-DD". */
 export type Period = { start: string; end: string };
 
 export type PeriodPreset = 'this-month' | 'last-month' | 'this-year' | 'this-fy' | 'last-fy';
 
-export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
-  { value: 'this-month', label: 'This month' },
-  { value: 'last-month', label: 'Last month' },
-  { value: 'this-year', label: 'This year' },
-  { value: 'this-fy', label: 'This FY' },
-  { value: 'last-fy', label: 'Last FY' },
-];
+export const PERIOD_PRESETS = [
+  { value: 'this-month', label: 'period.thisMonth' },
+  { value: 'last-month', label: 'period.lastMonth' },
+  { value: 'this-year', label: 'period.thisYear' },
+  { value: 'this-fy', label: 'period.thisFy' },
+  { value: 'last-fy', label: 'period.lastFy' },
+] as const satisfies readonly { value: PeriodPreset; label: string }[];
 
 const iso = (y: number, m: number, d: number) => todayISO(new Date(y, m, d));
 
@@ -47,27 +48,31 @@ export function inPeriod(date: string, p: Period): boolean {
   return date >= p.start && date <= p.end;
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS: Record<Lang, string[]> = {
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  hi: ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'],
+};
+const FY: Record<Lang, string> = { en: 'FY', hi: 'वित्त वर्ष' };
 
 /**
  * Human label for a period: "October 2026", "2026", "FY 2026-27", or "1 Oct – 15 Oct 2026".
  */
-export function formatPeriod(p: Period): string {
+export function formatPeriod(p: Period, lang: Lang = 'en'): string {
   const s = isoToDate(p.start);
   const e = isoToDate(p.end);
   const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
   if (sameMonth && s.getDate() === 1 && p.end === monthPeriod(s).end) {
-    return `${MONTHS[s.getMonth()]} ${s.getFullYear()}`;
+    return `${MONTHS[lang][s.getMonth()]} ${s.getFullYear()}`;
   }
   if (p.start === iso(s.getFullYear(), 0, 1) && p.end === iso(s.getFullYear(), 11, 31)) {
     return String(s.getFullYear());
   }
   if (p.start === iso(s.getFullYear(), 3, 1) && p.end === iso(s.getFullYear() + 1, 2, 31)) {
-    return `FY ${s.getFullYear()}-${String((s.getFullYear() + 1) % 100).padStart(2, '0')}`;
+    return `${FY[lang]} ${s.getFullYear()}-${String((s.getFullYear() + 1) % 100).padStart(2, '0')}`;
   }
-  if (p.start === p.end) return formatDate(p.start);
-  const startLabel = formatDate(p.start);
+  if (p.start === p.end) return formatDate(p.start, lang);
+  const startLabel = formatDate(p.start, lang);
   // Drop the repeated year: "1 Oct – 15 Oct 2026".
   const trimmed = s.getFullYear() === e.getFullYear() ? startLabel.replace(/ \d{4}$/, '') : startLabel;
-  return `${trimmed} – ${formatDate(p.end)}`;
+  return `${trimmed} – ${formatDate(p.end, lang)}`;
 }

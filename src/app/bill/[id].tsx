@@ -11,6 +11,8 @@ import { Spacing } from '@/constants/theme';
 import { deleteBill, getBill, setBillStatus } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
+import { errorText } from '@/lib/errors';
 import { shareBillImage, shareBillPdf } from '@/lib/pdf';
 import { billMessage, waPhone, whatsappUrl } from '@/lib/whatsapp';
 import type { BillWithLines } from '@/types';
@@ -18,6 +20,7 @@ import type { BillWithLines } from '@/types';
 export default function BillDetail() {
   const db = useSQLiteContext();
   const c = useTheme();
+  const { t, tn } = useT();
   const profile = useProfile();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [bill, setBill] = useState<BillWithLines | null | undefined>(undefined);
@@ -33,7 +36,7 @@ export default function BillDetail() {
   if (bill === null) {
     return (
       <View style={{ padding: Spacing.five }}>
-        <T>This bill no longer exists.</T>
+        <T>{t('bill.gone')}</T>
       </View>
     );
   }
@@ -46,7 +49,7 @@ export default function BillDetail() {
     try {
       await fn();
     } catch (e) {
-      Alert.alert('Could not share bill', e instanceof Error ? e.message : String(e));
+      Alert.alert(t('bill.shareFailed'), errorText(t, e));
     } finally {
       setBusy(null);
     }
@@ -57,7 +60,7 @@ export default function BillDetail() {
     try {
       await Linking.openURL(whatsappUrl(phone, billMessage(bill, profile)));
     } catch {
-      Alert.alert('WhatsApp not available', 'Use “Share PDF” or “Share image” to send the bill another way.');
+      Alert.alert(t('bill.whatsappUnavailable'), t('bill.whatsappUnavailableHint'));
     }
   }
 
@@ -70,13 +73,11 @@ export default function BillDetail() {
   const isPeriodBill = !!bill.period_start;
 
   function confirmDelete() {
-    const msg = isPeriodBill
-      ? `Its ${bill!.lines.length} work entries go back to unbilled so you can bill them again. This cannot be undone.`
-      : 'This cannot be undone.';
-    Alert.alert(`Delete ${bill!.bill_no}?`, msg, [
-      { text: 'Cancel', style: 'cancel' },
+    const msg = isPeriodBill ? tn('bill.deletePeriod', bill!.lines.length) : t('common.cannotUndo');
+    Alert.alert(t('common.deleteConfirm', { name: bill!.bill_no }), msg, [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           await deleteBill(db, bill!.id);
@@ -93,7 +94,7 @@ export default function BillDetail() {
       <BillPaper ref={paperRef} bill={bill} profile={profile} />
 
       <Button
-        title={isPaid ? 'Paid · tap to mark unpaid' : 'Mark as paid'}
+        title={t(isPaid ? 'bill.paidToggle' : 'bill.markPaid')}
         variant={isPaid ? 'secondary' : 'primary'}
         icon={
           <Ionicons
@@ -107,7 +108,7 @@ export default function BillDetail() {
 
       {phone ? (
         <Button
-          title="Send on WhatsApp"
+          title={t('bill.whatsapp')}
           variant="secondary"
           icon={<Ionicons name="logo-whatsapp" size={20} color={c.primary} />}
           onPress={sendWhatsApp}
@@ -115,7 +116,7 @@ export default function BillDetail() {
       ) : null}
       <Row>
         <Button
-          title="Share PDF"
+          title={t('bill.sharePdf')}
           variant="secondary"
           style={{ flex: 1 }}
           loading={busy === 'pdf'}
@@ -124,7 +125,7 @@ export default function BillDetail() {
           onPress={() => run('pdf', () => shareBillPdf(bill, profile))}
         />
         <Button
-          title="Share image"
+          title={t('bill.shareImage')}
           variant="secondary"
           style={{ flex: 1 }}
           loading={busy === 'image'}
@@ -134,14 +135,12 @@ export default function BillDetail() {
         />
       </Row>
       {!profile.upi_id && !isPaid ? (
-        <T muted style={{ fontSize: 13, textAlign: 'center' }}>
-          Tip: add your UPI ID in Settings to print a “Scan to pay” QR on every bill.
-        </T>
+        <T muted style={{ fontSize: 13, textAlign: 'center' }}>{t('bill.upiTip')}</T>
       ) : null}
 
       {bill.client_id ? (
         <Button
-          title={`Open client · ${bill.customer_name}`}
+          title={t('bill.openClient', { name: bill.customer_name })}
           variant="secondary"
           icon={<Ionicons name="person-outline" size={18} color={c.primary} />}
           onPress={() => router.push({ pathname: '/client/[id]', params: { id: String(bill.client_id) } })}
@@ -150,13 +149,13 @@ export default function BillDetail() {
       {/* Period bills come from logged work; duplicating them would double-bill those entries. */}
       {!isPeriodBill ? (
         <Button
-          title="Duplicate as new bill"
+          title={t('bill.duplicate')}
           variant="secondary"
           icon={<Ionicons name="copy-outline" size={18} color={c.primary} />}
           onPress={() => router.push({ pathname: '/bill/new', params: { from: String(bill.id) } })}
         />
       ) : null}
-      <Button title="Delete bill" variant="danger" onPress={confirmDelete} />
+      <Button title={t('bill.delete')} variant="danger" onPress={confirmDelete} />
     </ScrollView>
   );
 }

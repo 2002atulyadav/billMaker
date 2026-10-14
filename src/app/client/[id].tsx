@@ -22,6 +22,8 @@ import {
 } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
+import { errorText } from '@/lib/errors';
 import { detailsText, entryTotal, groupByMonth, sumEntries } from '@/lib/entries';
 import { formatDate, formatMoney, formatQty, isoToDate, todayISO } from '@/lib/money';
 import { shareStatementPdf } from '@/lib/pdf';
@@ -34,6 +36,7 @@ const ALL_TIME: Period = { start: '0000-01-01', end: '9999-12-31' };
 export default function ClientDetail() {
   const db = useSQLiteContext();
   const c = useTheme();
+  const { t, tn, lang, unit, dyn } = useT();
   const profile = useProfile();
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
@@ -72,14 +75,19 @@ export default function ClientDetail() {
   if (client === null) {
     return (
       <View style={{ padding: Spacing.five }}>
-        <T>This client no longer exists.</T>
+        <T>{t('client.gone')}</T>
       </View>
     );
   }
 
   const currency = profile.currency;
   const money = (m: number) => formatMoney(m, currency);
-  const fields = presetFor(profile.trade).entryFields;
+  // Field labels in the app language; bills snapshot the English labels and translate when printing.
+  const fields = presetFor(profile.trade).entryFields.map((f) => ({
+    ...f,
+    label: dyn(`field.${f.key}`, f.label),
+    placeholder: f.placeholder && dyn(`field.${f.key}.placeholder`, f.placeholder),
+  }));
   const unbilled = entries.filter((e) => e.bill_id === null);
   const unbilledSum = sumEntries(unbilled);
   const groups = groupByMonth(showBilled ? entries : unbilled);
@@ -91,10 +99,10 @@ export default function ClientDetail() {
   }
 
   function confirmDeleteEntry(entryId: number) {
-    Alert.alert('Delete entry?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('entry.deleteTitle'), t('common.cannotUndo'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -102,7 +110,7 @@ export default function ClientDetail() {
             setEntryOpen(false);
             load();
           } catch (err) {
-            Alert.alert('Could not delete', err instanceof Error ? err.message : String(err));
+            Alert.alert(t('entry.deleteFailed'), errorText(t, err));
           }
         },
       },
@@ -111,14 +119,12 @@ export default function ClientDetail() {
 
   function confirmDeleteClient(cid: number) {
     Alert.alert(
-      `Delete ${client!.name}?`,
-      unbilled.length
-        ? `Their ${unbilled.length} unbilled ${unbilled.length === 1 ? 'entry' : 'entries'} will be deleted too. Bills already made are kept.`
-        : 'Bills already made are kept.',
+      t('common.deleteConfirm', { name: client!.name }),
+      unbilled.length ? tn('clients.deleteWithEntries', unbilled.length) : t('clients.deleteKeepsBills'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteClient(db, cid);
@@ -148,8 +154,8 @@ export default function ClientDetail() {
       }
     } catch (err) {
       Alert.alert(
-        periodMode === 'bill' ? 'Could not create bill' : 'Could not share statement',
-        err instanceof Error ? err.message : String(err),
+        t(periodMode === 'bill' ? 'client.billFailed' : 'client.statementFailed'),
+        errorText(t, err),
       );
     }
   }
@@ -160,8 +166,8 @@ export default function ClientDetail() {
         options={{
           title: client.name,
           headerRight: () => (
-            <Pressable onPress={() => setClientOpen(true)} hitSlop={10} accessibilityLabel="Edit client">
-              <T style={{ color: c.primary }}>Edit</T>
+            <Pressable onPress={() => setClientOpen(true)} hitSlop={10} accessibilityLabel={t('clients.edit')}>
+              <T style={{ color: c.primary }}>{t('common.edit')}</T>
             </Pressable>
           ),
         }}
@@ -172,29 +178,29 @@ export default function ClientDetail() {
           {client.address ? <T muted>{client.address}</T> : null}
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <SectionTitle>Unbilled work</SectionTitle>
+              <SectionTitle>{t('client.unbilledWork')}</SectionTitle>
               <T style={{ fontSize: 22, fontWeight: '700' }}>{money(unbilledSum.total_minor)}</T>
               <T muted style={{ fontSize: 13 }}>
-                {unbilledSum.count} {unbilledSum.count === 1 ? 'entry' : 'entries'}
+                {tn('common.entries', unbilledSum.count)}
               </T>
             </View>
             {outstanding > 0 ? (
               <View style={{ alignItems: 'flex-end' }}>
-                <SectionTitle>Bills unpaid</SectionTitle>
+                <SectionTitle>{t('client.billsUnpaid')}</SectionTitle>
                 <T style={{ fontSize: 18, fontWeight: '700', color: c.warning }}>{money(outstanding)}</T>
               </View>
             ) : null}
           </Row>
           <Row>
             <Button
-              title="Create bill"
+              title={t('client.createBill')}
               style={{ flex: 1 }}
               disabled={unbilled.length === 0}
               icon={<Ionicons name="receipt-outline" size={18} color={c.primaryText} />}
               onPress={() => setPeriodMode('bill')}
             />
             <Button
-              title="Statement"
+              title={t('client.statement')}
               variant="secondary"
               style={{ flex: 1 }}
               icon={<Ionicons name="document-text-outline" size={18} color={c.primary} />}
@@ -204,25 +210,25 @@ export default function ClientDetail() {
         </Card>
 
         <Row style={{ justifyContent: 'space-between' }}>
-          <SectionTitle>Work log</SectionTitle>
+          <SectionTitle>{t('client.workLog')}</SectionTitle>
           <Row>
-            <Chip label="Unbilled" selected={!showBilled} onPress={() => setShowBilled(false)} />
-            <Chip label="All" selected={showBilled} onPress={() => setShowBilled(true)} />
+            <Chip label={t('client.filterUnbilled')} selected={!showBilled} onPress={() => setShowBilled(false)} />
+            <Chip label={t('client.filterAll')} selected={showBilled} onPress={() => setShowBilled(true)} />
           </Row>
         </Row>
 
         {groups.length === 0 ? (
           <EmptyState
-            title={showBilled ? 'No work logged yet' : 'Nothing to bill'}
-            message="Tap “Add entry” each time you do a job — a trip, a visit, a class. Bill them together at month end."
+            title={t(showBilled ? 'client.noWork' : 'client.nothingToBill')}
+            message={t('client.workHint')}
           />
         ) : null}
 
         {groups.map((g) => (
           <View key={g.key} style={{ gap: Spacing.two }}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <T style={{ fontWeight: '600' }}>{formatPeriod(monthPeriod(isoToDate(`${g.key}-01`)))}</T>
-              {g.unbilled_minor ? <T muted>{money(g.unbilled_minor)} unbilled</T> : null}
+              <T style={{ fontWeight: '600' }}>{formatPeriod(monthPeriod(isoToDate(`${g.key}-01`)), lang)}</T>
+              {g.unbilled_minor ? <T muted>{t('client.monthUnbilled', { amount: money(g.unbilled_minor) })}</T> : null}
             </Row>
             {g.entries.map((e) => {
               const extra = detailsText(fields, e.details);
@@ -241,14 +247,14 @@ export default function ClientDetail() {
                   ]}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <T muted style={{ fontSize: 12 }}>
-                      {formatDate(e.date)}
-                      {billed ? ` · Billed on ${e.bill_no}` : ''}
+                      {formatDate(e.date, lang)}
+                      {billed ? ` · ${t('client.billedOn', { billNo: e.bill_no ?? '' })}` : ''}
                     </T>
                     <T style={{ fontWeight: '500' }}>{e.description}</T>
                     {extra ? <T muted style={{ fontSize: 13 }}>{extra}</T> : null}
                     <T muted style={{ fontSize: 13 }}>
                       {formatQty(e.qty)}
-                      {e.unit ? ` ${e.unit}` : ''} × {money(e.unit_price_minor)}
+                      {e.unit ? ` ${unit(e.unit)}` : ''} × {money(e.unit_price_minor)}
                     </T>
                   </View>
                   <T style={{ fontWeight: '600' }}>{money(entryTotal(e))}</T>
@@ -260,7 +266,7 @@ export default function ClientDetail() {
 
         {bills.length ? (
           <View style={{ gap: Spacing.two }}>
-            <SectionTitle>Bills</SectionTitle>
+            <SectionTitle>{t('client.bills')}</SectionTitle>
             {bills.map((b) => (
               <Pressable
                 key={b.id}
@@ -273,8 +279,8 @@ export default function ClientDetail() {
                   <T style={{ fontWeight: '600' }}>{b.bill_no}</T>
                   <T muted style={{ fontSize: 13 }}>
                     {b.period_start && b.period_end
-                      ? formatPeriod({ start: b.period_start, end: b.period_end })
-                      : formatDate(b.date)}
+                      ? formatPeriod({ start: b.period_start, end: b.period_end }, lang)
+                      : formatDate(b.date, lang)}
                   </T>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -289,7 +295,7 @@ export default function ClientDetail() {
 
       <View style={styles.fab}>
         <Button
-          title="Add entry"
+          title={t('client.addEntry')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => openEntry(null)}
         />

@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { DATABASE_NAME, migrate } from '@/db/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+import { I18nProvider, useT } from '@/i18n/I18nProvider';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -27,18 +28,27 @@ export default function RootLayout() {
           </View>
         }>
         <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrate} useSuspense>
-          <Stack screenOptions={{ headerTitleStyle: { fontWeight: '600' } }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="onboarding"
-              options={{ title: 'Set up your business', headerBackVisible: false, gestureEnabled: false }}
-            />
-            <Stack.Screen name="bill/new" options={{ title: 'New bill' }} />
-            <Stack.Screen name="bill/[id]" options={{ title: 'Bill' }} />
-            <Stack.Screen name="client/[id]" options={{ title: 'Client' }} />
-          </Stack>
+          <I18nProvider>
+            <AppStack />
+          </I18nProvider>
         </SQLiteProvider>
       </Suspense>
     </ThemeProvider>
+  );
+}
+
+function AppStack() {
+  const { t } = useT();
+  return (
+    <Stack screenOptions={{ headerTitleStyle: { fontWeight: '600' } }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="onboarding"
+        options={{ title: t('nav.onboarding'), headerBackVisible: false, gestureEnabled: false }}
+      />
+      <Stack.Screen name="bill/new" options={{ title: t('nav.newBill') }} />
+      <Stack.Screen name="bill/[id]" options={{ title: t('nav.bill') }} />
+      <Stack.Screen name="client/[id]" options={{ title: t('nav.client') }} />
+    </Stack>
   );
 }

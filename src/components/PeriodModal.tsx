@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { DateField } from '@/components/DateField';
 import { Sheet } from '@/components/Sheet';
 import { Button, Card, Chip, Row, T } from '@/components/ui';
+import { useT } from '@/i18n/I18nProvider';
 import { billableEntries, sumEntries } from '@/lib/entries';
 import { formatDate, formatMoney, todayISO } from '@/lib/money';
 import { PERIOD_PRESETS, formatPeriod, presetPeriod, type Period, type PeriodPreset } from '@/lib/period';
@@ -20,10 +21,11 @@ type Props = {
 };
 
 export function PeriodModal(props: Props) {
+  const { t } = useT();
   return (
     <Sheet
       visible={props.visible}
-      title={props.mode === 'bill' ? 'Create bill for…' : 'Statement for…'}
+      title={t(props.mode === 'bill' ? 'period.billFor' : 'period.statementFor')}
       onClose={props.onClose}>
       <PeriodForm {...props} />
     </Sheet>
@@ -34,6 +36,7 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
   const [choice, setChoice] = useState<PeriodPreset | 'custom'>(mode === 'bill' ? 'this-month' : 'this-fy');
   const [custom, setCustom] = useState<Period>(() => presetPeriod('this-month'));
   const [busy, setBusy] = useState(false);
+  const { t, tn, lang } = useT();
 
   const period = choice === 'custom' ? custom : presetPeriod(choice);
   const valid = period.start <= period.end;
@@ -52,41 +55,41 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
     <>
       <Row style={{ flexWrap: 'wrap' }}>
         {PERIOD_PRESETS.map((p) => (
-          <Chip key={p.value} label={p.label} selected={choice === p.value} onPress={() => setChoice(p.value)} />
+          <Chip key={p.value} label={t(p.label)} selected={choice === p.value} onPress={() => setChoice(p.value)} />
         ))}
-        <Chip label="Custom" selected={choice === 'custom'} onPress={() => setChoice('custom')} />
+        <Chip label={t('period.custom')} selected={choice === 'custom'} onPress={() => setChoice('custom')} />
       </Row>
 
       {choice === 'custom' ? (
         <>
-          <DateField label="From" value={custom.start} onChange={(start) => setCustom((p) => ({ ...p, start }))} />
-          <DateField label="To" value={custom.end} onChange={(end) => setCustom((p) => ({ ...p, end }))} />
+          <DateField label={t('period.from')} value={custom.start} onChange={(start) => setCustom((p) => ({ ...p, start }))} />
+          <DateField label={t('period.to')} value={custom.end} onChange={(end) => setCustom((p) => ({ ...p, end }))} />
         </>
       ) : null}
 
       <Card>
-        <T style={{ fontWeight: '600' }}>{valid ? formatPeriod(period) : '“From” must be before “To”'}</T>
+        <T style={{ fontWeight: '600' }}>{valid ? formatPeriod(period, lang) : t('period.invalid')}</T>
         {mode === 'bill' && valid ? (
           preview.count ? (
             <T muted>
-              {preview.count} unbilled {preview.count === 1 ? 'entry' : 'entries'} ·{' '}
+              {tn('period.unbilledPreview', preview.count)}{' '}
               <T style={{ fontWeight: '700' }}>{formatMoney(preview.total_minor, currency)}</T>
             </T>
           ) : (
-            <T muted>No unbilled entries in this period.</T>
+            <T muted>{t('client.noEntriesInPeriod')}</T>
           )
         ) : null}
         {mode === 'bill' ? (
-          <T muted style={{ fontSize: 12 }}>The bill is dated today ({formatDate(todayISO())}) and lists each entry with its date.</T>
+          <T muted style={{ fontSize: 12 }}>{t('period.billHint', { date: formatDate(todayISO(), lang) })}</T>
         ) : (
-          <T muted style={{ fontSize: 12 }}>Lists every bill sent in this period with what’s paid and what’s still due.</T>
+          <T muted style={{ fontSize: 12 }}>{t('period.statementHint')}</T>
         )}
       </Card>
 
       <Row>
-        <Button title="Cancel" variant="secondary" onPress={onClose} style={{ flex: 1 }} />
+        <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
         <Button
-          title={mode === 'bill' ? 'Create bill' : 'Share PDF'}
+          title={t(mode === 'bill' ? 'client.createBill' : 'period.sharePdf')}
           onPress={confirm}
           loading={busy}
           disabled={!valid || (mode === 'bill' && preview.count === 0)}

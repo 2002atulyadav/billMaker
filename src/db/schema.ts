@@ -87,6 +87,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE bill_items ADD COLUMN entry_date TEXT;
   ALTER TABLE bill_items ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
   `,
+  `
+  ALTER TABLE profile ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
+  ALTER TABLE profile ADD COLUMN bill_language TEXT NOT NULL DEFAULT 'en';
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

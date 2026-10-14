@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, type TextProps } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import { Spacing } from '@/constants/theme';
+import { makeBillTranslator } from '@/i18n';
 import { detailsText } from '@/lib/entries';
 import { formatDate, formatMoney, formatQty } from '@/lib/money';
 import { formatPeriod } from '@/lib/period';
@@ -16,6 +17,8 @@ import type { BillWithLines, Profile } from '@/types';
  */
 export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile: Profile; ref?: Ref<View> }) {
   const money = (m: number) => formatMoney(m, profile.currency);
+  // Follows the bill language (not the app language): this view is what gets shared as an image.
+  const tr = makeBillTranslator(profile.bill_language);
   const isPaid = bill.status === 'paid';
   const showPay = !isPaid && !!profile.upi_id && bill.total_minor > 0;
 
@@ -33,10 +36,10 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <P style={styles.billNo}>{bill.bill_no}</P>
-          <P muted>{formatDate(bill.date)}</P>
+          <P muted>{formatDate(bill.date, tr.lang)}</P>
           {isPaid ? (
             <View style={styles.stamp}>
-              <Text style={styles.stampText}>PAID</Text>
+              <Text style={styles.stampText}>{tr.t('pdf.paid')}</Text>
             </View>
           ) : null}
         </View>
@@ -44,7 +47,7 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
 
       {bill.customer_name || bill.customer_phone ? (
         <View style={{ marginTop: Spacing.three }}>
-          <P muted style={styles.label}>BILL TO</P>
+          <P muted style={styles.label}>{tr.t('pdf.billTo')}</P>
           {bill.customer_name ? <P style={{ fontWeight: '600' }}>{bill.customer_name}</P> : null}
           {bill.customer_address ? <P muted>{bill.customer_address}</P> : null}
           {bill.customer_phone ? <P muted>{bill.customer_phone}</P> : null}
@@ -53,10 +56,10 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
 
       {bill.period_start && bill.period_end ? (
         <View style={styles.period}>
-          <P muted style={styles.label}>BILLING PERIOD</P>
+          <P muted style={styles.label}>{tr.t('pdf.billingPeriod')}</P>
           <P style={{ fontWeight: '600' }}>
-            {formatPeriod({ start: bill.period_start, end: bill.period_end })} · {bill.lines.length}{' '}
-            {bill.lines.length === 1 ? 'entry' : 'entries'}
+            {formatPeriod({ start: bill.period_start, end: bill.period_end }, tr.lang)} ·{' '}
+            {tr.tn('common.entries', bill.lines.length)}
           </P>
         </View>
       ) : null}
@@ -67,12 +70,12 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
           return (
             <View key={i} style={styles.line}>
               <View style={{ flex: 1 }}>
-                {l.entry_date ? <P muted style={{ fontSize: 12 }}>{formatDate(l.entry_date)}</P> : null}
+                {l.entry_date ? <P muted style={{ fontSize: 12 }}>{formatDate(l.entry_date, tr.lang)}</P> : null}
                 <P style={{ fontWeight: '500' }}>{l.description}</P>
                 {extra ? <P muted style={{ fontSize: 13 }}>{extra}</P> : null}
                 <P muted style={{ fontSize: 13 }}>
                   {formatQty(l.qty)}
-                  {l.unit ? ` ${l.unit}` : ''} × {money(l.unit_price_minor)}
+                  {l.unit ? ` ${tr.unit(l.unit)}` : ''} × {money(l.unit_price_minor)}
                 </P>
               </View>
               <P style={{ fontWeight: '600' }}>{money(l.line_total_minor)}</P>
@@ -83,24 +86,24 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
 
       <View style={styles.totals}>
         <View style={styles.totalRow}>
-          <P muted>Subtotal</P>
+          <P muted>{tr.t('pdf.subtotal')}</P>
           <P>{money(bill.subtotal_minor)}</P>
         </View>
         {bill.discount_minor > 0 ? (
           <View style={styles.totalRow}>
-            <P muted>Discount</P>
+            <P muted>{tr.t('pdf.discount')}</P>
             <P>-{money(bill.discount_minor)}</P>
           </View>
         ) : null}
         <View style={[styles.totalRow, styles.grand]}>
-          <P style={{ fontSize: 17, fontWeight: '700' }}>Total</P>
+          <P style={{ fontSize: 17, fontWeight: '700' }}>{tr.t('pdf.total')}</P>
           <P style={{ fontSize: 22, fontWeight: '700' }}>{money(bill.total_minor)}</P>
         </View>
       </View>
 
       {bill.notes ? (
         <View style={styles.notes}>
-          <P muted style={styles.label}>NOTES</P>
+          <P muted style={styles.label}>{tr.t('pdf.notes')}</P>
           <P>{bill.notes}</P>
         </View>
       ) : null}
@@ -117,9 +120,11 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
             size={112}
           />
           <View style={{ flex: 1, gap: 2 }}>
-            <P muted style={styles.label}>SCAN TO PAY WITH ANY UPI APP</P>
+            <P muted style={styles.label}>{tr.t('pdf.scanToPay')}</P>
             <P style={{ fontSize: 18, fontWeight: '700' }}>{money(bill.total_minor)}</P>
-            <P muted style={{ fontSize: 13 }}>UPI ID: {profile.upi_id}</P>
+            <P muted style={{ fontSize: 13 }}>
+              {tr.t('pdf.upiId')}: {profile.upi_id}
+            </P>
           </View>
         </View>
       ) : null}
@@ -157,7 +162,7 @@ const styles = StyleSheet.create({
   logo: { width: 48, height: 48, borderRadius: 8 },
   bizName: { fontSize: 18, fontWeight: '700' },
   billNo: { fontWeight: '700', color: PAPER.accent },
-  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
+  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
   stamp: {
     marginTop: Spacing.two,
     borderWidth: 2,
@@ -167,7 +172,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     transform: [{ rotate: '-6deg' }],
   },
-  stampText: { color: PAPER.paid, fontWeight: '800', letterSpacing: 2 },
+  stampText: { color: PAPER.paid, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
   line: {
     flexDirection: 'row',
     alignItems: 'center',

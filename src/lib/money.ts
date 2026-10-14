@@ -1,3 +1,5 @@
+import type { Lang } from '@/types';
+
 /**
  * All money is held as integer minor units (paise/cents) so totals never pick up
  * floating-point drift. Quantities may be fractional (2.5 kg, 12.4 km).
@@ -73,12 +75,16 @@ export function todayISO(now = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-/** "2026-10-11" -> "11 Oct 2026". Falls back to the raw string. */
-export function formatDate(iso: string): string {
+const SHORT_MONTHS: Record<Lang, string[]> = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  hi: ['जन', 'फ़र', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुल', 'अग', 'सित', 'अक्टू', 'नव', 'दिस'],
+};
+
+/** "2026-10-11" -> "11 Oct 2026" ("11 अक्टू 2026" in Hindi). Falls back to the raw string. */
+export function formatDate(iso: string, lang: Lang = 'en'): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return iso;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[1]}`;
+  return `${Number(m[3])} ${SHORT_MONTHS[lang][Number(m[2]) - 1]} ${m[1]}`;
 }
 
 export function isValidISODate(iso: string): boolean {

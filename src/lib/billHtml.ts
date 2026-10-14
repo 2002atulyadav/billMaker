@@ -1,3 +1,4 @@
+import { makeBillTranslator, type Translator } from '@/i18n';
 import { formatDate, formatMoney, formatQty } from '@/lib/money';
 import { formatPeriod } from '@/lib/period';
 import { qrSvg, upiLink } from '@/lib/upi';
@@ -19,7 +20,7 @@ export function nl2br(s: string): string {
 /** Styles shared by the bill and statement PDFs. */
 export const BASE_CSS = `
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; color: #111; margin: 0; padding: 32px; font-size: 13px; }
+  body { font-family: -apple-system, Roboto, "Helvetica Neue", Arial, "Noto Sans Devanagari", "Kohinoor Devanagari", sans-serif; color: #111; margin: 0; padding: 32px; font-size: 13px; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1F6FEB; padding-bottom: 16px; }
   .biz { display: flex; gap: 12px; align-items: center; }
   .logo { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; }
@@ -67,22 +68,30 @@ export function businessHead(profile: Profile, right: string): string {
 }
 
 /** UPI QR block asking for `amountMinor`; empty when no UPI ID is set or nothing is due. */
-export function payBlock(profile: Profile, amountMinor: number, note: string): string {
+export function payBlock(profile: Profile, amountMinor: number, note: string, tr: Translator): string {
   if (!profile.upi_id || amountMinor <= 0) return '';
   const link = upiLink({ upiId: profile.upi_id, payeeName: profile.business_name, amountMinor, note });
   return `<div class="pay">
     ${qrSvg(link, 132)}
     <div>
-      <div class="label">Scan to pay with any UPI app</div>
+      <div class="label">${esc(tr.t('pdf.scanToPay'))}</div>
       <div class="strong">${esc(formatMoney(amountMinor, profile.currency))}</div>
-      <div class="muted">UPI ID: ${esc(profile.upi_id)}</div>
+      <div class="muted">${esc(tr.t('pdf.upiId'))}: ${esc(profile.upi_id)}</div>
     </div>
   </div>`;
 }
 
-/** Self-contained HTML (no external assets) rendered to PDF by expo-print. */
-export function billToHtml(bill: BillWithLines, profile: Profile): string {
+/**
+ * Self-contained HTML (no external assets) rendered to PDF by expo-print.
+ * Labels follow the profile's bill language unless a translator is passed.
+ */
+export function billToHtml(
+  bill: BillWithLines,
+  profile: Profile,
+  tr: Translator = makeBillTranslator(profile.bill_language),
+): string {
   const money = (m: number) => esc(formatMoney(m, profile.currency));
+  const date = (iso: string) => esc(formatDate(iso, tr.lang));
 
   // Period bills add a Date column and one column per trade field (From, To, Vehicle no., …).
   const hasDates = bill.lines.some((l) => l.entry_date);
@@ -92,10 +101,10 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
       (l, i) => `
       <tr>
         <td class="num">${i + 1}</td>
-        ${hasDates ? `<td class="nowrap">${l.entry_date ? esc(formatDate(l.entry_date)) : ''}</td>` : ''}
+        ${hasDates ? `<td class="nowrap">${l.entry_date ? date(l.entry_date) : ''}</td>` : ''}
         <td>${esc(l.description)}</td>
         ${fields.map((f) => `<td>${esc(l.details[f.key] ?? '')}</td>`).join('')}
-        <td class="r">${formatQty(l.qty)}${l.unit ? ' ' + esc(l.unit) : ''}</td>
+        <td class="r">${formatQty(l.qty)}${l.unit ? ' ' + esc(tr.unit(l.unit)) : ''}</td>
         <td class="r">${money(l.unit_price_minor)}</td>
         <td class="r">${money(l.line_total_minor)}</td>
       </tr>`,
@@ -103,11 +112,11 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
     .join('');
 
   const isPaid = bill.status === 'paid';
-  const pay = isPaid ? '' : payBlock(profile, bill.total_minor, bill.bill_no);
+  const pay = isPaid ? '' : payBlock(profile, bill.total_minor, bill.bill_no, tr);
 
   const customer =
     bill.customer_name || bill.customer_phone
-      ? `<div class="label">Bill to</div>
+      ? `<div class="label">${esc(tr.t('pdf.billTo'))}</div>
          <div class="strong">${esc(bill.customer_name)}</div>
          ${bill.customer_address ? `<div class="muted">${nl2br(bill.customer_address)}</div>` : ''}
          ${bill.customer_phone ? `<div>${esc(bill.customer_phone)}</div>` : ''}`
@@ -115,42 +124,48 @@ export function billToHtml(bill: BillWithLines, profile: Profile): string {
 
   const period =
     bill.period_start && bill.period_end
-      ? `<div class="r"><div class="label">Billing period</div>
-         <div class="strong">${esc(formatPeriod({ start: bill.period_start, end: bill.period_end }))}</div>
-         <div class="muted">${bill.lines.length} ${bill.lines.length === 1 ? 'entry' : 'entries'}</div></div>`
+      ? `<div class="r"><div class="label">${esc(tr.t('pdf.billingPeriod'))}</div>
+         <div class="strong">${esc(formatPeriod({ start: bill.period_start, end: bill.period_end }, tr.lang))}</div>
+         <div class="muted">${esc(tr.tn('common.entries', bill.lines.length))}</div></div>`
       : '';
 
   return `<!doctype html>
-<html><head><meta charset="utf-8"/>
+<html lang="${tr.lang}"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
 ${BASE_CSS}</style></head>
 <body>
   ${businessHead(profile, `
-      <h1>BILL</h1>
+      <h1>${esc(tr.t('pdf.bill'))}</h1>
       <div class="strong">${esc(bill.bill_no)}</div>
-      <div class="muted">${esc(formatDate(bill.date))}</div>
-      ${isPaid ? '<div class="stamp">PAID</div>' : ''}`)}
+      <div class="muted">${date(bill.date)}</div>
+      ${isPaid ? `<div class="stamp">${esc(tr.t('pdf.paid'))}</div>` : ''}`)}
 
   <div class="meta"><div>${customer}</div>${period}</div>
 
   <table>
-    <thead><tr><th>#</th>${hasDates ? '<th>Date</th>' : ''}<th>Item</th>${fields
-      .map((f) => `<th>${esc(f.label)}</th>`)
-      .join('')}<th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
+    <thead><tr><th>#</th>${hasDates ? `<th>${esc(tr.t('pdf.date'))}</th>` : ''}<th>${esc(tr.t('pdf.item'))}</th>${fields
+      .map((f) => `<th>${esc(tr.dyn(`field.${f.key}`, f.label))}</th>`)
+      .join('')}<th class="r">${esc(tr.t('pdf.qty'))}</th><th class="r">${esc(tr.t('pdf.rate'))}</th><th class="r">${esc(
+      tr.t('pdf.amount'),
+    )}</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
 
   <div class="totals">
-    <div><span>Subtotal</span><span>${money(bill.subtotal_minor)}</span></div>
-    ${bill.discount_minor > 0 ? `<div><span>Discount</span><span>-${money(bill.discount_minor)}</span></div>` : ''}
-    <div class="grand"><span>Total</span><span>${money(bill.total_minor)}</span></div>
+    <div><span>${esc(tr.t('pdf.subtotal'))}</span><span>${money(bill.subtotal_minor)}</span></div>
+    ${
+      bill.discount_minor > 0
+        ? `<div><span>${esc(tr.t('pdf.discount'))}</span><span>-${money(bill.discount_minor)}</span></div>`
+        : ''
+    }
+    <div class="grand"><span>${esc(tr.t('pdf.total'))}</span><span>${money(bill.total_minor)}</span></div>
   </div>
 
   ${pay}
 
-  ${bill.notes ? `<div class="notes"><div class="label">Notes</div>${nl2br(bill.notes)}</div>` : ''}
+  ${bill.notes ? `<div class="notes"><div class="label">${esc(tr.t('pdf.notes'))}</div>${nl2br(bill.notes)}</div>` : ''}
 
-  <div class="thanks">Thank you for your business!</div>
+  <div class="thanks">${esc(tr.t('pdf.thanks'))}</div>
 </body></html>`;
 }

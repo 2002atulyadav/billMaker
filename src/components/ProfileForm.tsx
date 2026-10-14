@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Field, Row, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { isValidUpiId } from '@/lib/upi';
 import type { ProfileInput } from '@/types';
 
@@ -30,6 +31,7 @@ export function ProfileForm({
   onSubmit: (p: ProfileInput) => Promise<void>;
 }) {
   const c = useTheme();
+  const { t } = useT();
   const [p, setP] = useState<ProfileInput>({ ...EMPTY, ...initial });
   const [error, setError] = useState<string | null>(null);
   const [upiError, setUpiError] = useState<string | null>(null);
@@ -50,8 +52,8 @@ export function ProfileForm({
   }
 
   async function submit() {
-    const nameErr = p.business_name.trim() ? null : 'Business name is required';
-    const upiErr = !p.upi_id.trim() || isValidUpiId(p.upi_id) ? null : 'Enter a UPI ID like yourname@okhdfc';
+    const nameErr = p.business_name.trim() ? null : t('profile.businessNameRequired');
+    const upiErr = !p.upi_id.trim() || isValidUpiId(p.upi_id) ? null : t('profile.upiInvalid');
     setError(nameErr);
     setUpiError(upiErr);
     if (nameErr || upiErr) return;
@@ -75,7 +77,7 @@ export function ProfileForm({
   return (
     <View style={{ gap: Spacing.four }}>
       <Card>
-        <SectionTitle>Business</SectionTitle>
+        <SectionTitle>{t('profile.business')}</SectionTitle>
         <Row style={{ gap: Spacing.four }}>
           <Pressable
             onPress={pickLogo}
@@ -83,13 +85,13 @@ export function ProfileForm({
             {p.logo_uri ? (
               <Image source={{ uri: p.logo_uri }} style={styles.logoImg} contentFit="contain" />
             ) : (
-              <T muted style={{ fontSize: 12, textAlign: 'center' }}>Add{'\n'}logo</T>
+              <T muted style={{ fontSize: 12, textAlign: 'center' }}>{t('profile.addLogo')}</T>
             )}
           </Pressable>
           <View style={{ flex: 1 }}>
             <Field
-              label="Business / your name *"
-              placeholder="e.g. Sharma General Store"
+              label={t('profile.businessName')}
+              placeholder={t('profile.businessNamePlaceholder')}
               value={p.business_name}
               onChangeText={(v) => set('business_name', v)}
               error={error}
@@ -98,23 +100,23 @@ export function ProfileForm({
         </Row>
         {p.logo_uri ? (
           <Pressable onPress={() => set('logo_uri', null)}>
-            <T style={{ color: c.danger, fontSize: 13 }}>Remove logo</T>
+            <T style={{ color: c.danger, fontSize: 13 }}>{t('profile.removeLogo')}</T>
           </Pressable>
         ) : null}
-        <Field label="Owner name" value={p.owner_name} onChangeText={(v) => set('owner_name', v)} />
-        <Field label="Phone" keyboardType="phone-pad" value={p.phone} onChangeText={(v) => set('phone', v)} />
-        <Field label="Address" multiline value={p.address} onChangeText={(v) => set('address', v)} />
+        <Field label={t('profile.ownerName')} value={p.owner_name} onChangeText={(v) => set('owner_name', v)} />
+        <Field label={t('profile.phone')} keyboardType="phone-pad" value={p.phone} onChangeText={(v) => set('phone', v)} />
+        <Field label={t('profile.address')} multiline value={p.address} onChangeText={(v) => set('address', v)} />
       </Card>
 
       <Card>
-        <SectionTitle>Bill settings</SectionTitle>
+        <SectionTitle>{t('profile.billSettings')}</SectionTitle>
         <Row style={{ alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Field label="Currency symbol" value={p.currency} onChangeText={(v) => set('currency', v)} maxLength={4} />
+            <Field label={t('profile.currency')} value={p.currency} onChangeText={(v) => set('currency', v)} maxLength={4} />
           </View>
           <View style={{ flex: 1 }}>
             <Field
-              label="Bill number prefix"
+              label={t('profile.prefix')}
               autoCapitalize="characters"
               value={p.bill_prefix}
               onChangeText={(v) => set('bill_prefix', v)}
@@ -122,14 +124,16 @@ export function ProfileForm({
             />
           </View>
         </Row>
-        <T muted style={{ fontSize: 12 }}>Bills will be numbered {p.bill_prefix}0001, {p.bill_prefix}0002, …</T>
+        <T muted style={{ fontSize: 12 }}>
+          {t('profile.numberingPreview', { a: `${p.bill_prefix}0001`, b: `${p.bill_prefix}0002` })}
+        </T>
       </Card>
 
       <Card>
-        <SectionTitle>Get paid</SectionTitle>
+        <SectionTitle>{t('profile.getPaid')}</SectionTitle>
         <Field
-          label="UPI ID (optional)"
-          placeholder="e.g. yourname@okhdfc"
+          label={t('profile.upiId')}
+          placeholder={t('profile.upiPlaceholder')}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
@@ -137,9 +141,7 @@ export function ProfileForm({
           onChangeText={(v) => set('upi_id', v)}
           error={upiError}
         />
-        <T muted style={{ fontSize: 12 }}>
-          Unpaid bills will show a QR code your customer can scan with GPay, PhonePe, Paytm or any UPI app.
-        </T>
+        <T muted style={{ fontSize: 12 }}>{t('profile.upiHint')}</T>
       </Card>
 
       <Button title={submitLabel} onPress={submit} loading={saving} />

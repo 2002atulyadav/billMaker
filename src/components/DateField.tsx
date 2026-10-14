@@ -6,12 +6,14 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Row, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useT } from '@/i18n/I18nProvider';
 import { formatDate, isoToDate, todayISO } from '@/lib/money';
 
 /** Date input backed by the native picker. Value is a local "YYYY-MM-DD" string. */
 export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (iso: string) => void }) {
   const c = useTheme();
   const [open, setOpen] = useState(false);
+  const { t, lang } = useT();
   const date = isoToDate(value);
 
   if (Platform.OS !== 'android') {
@@ -23,6 +25,7 @@ export function DateField({ label, value, onChange }: { label: string; value: st
           value={date}
           mode="date"
           display="compact"
+          locale={lang === 'hi' ? 'hi_IN' : 'en_IN'}
           accentColor={c.primary}
           onValueChange={(_e, d) => onChange(todayISO(d))}
         />
@@ -36,10 +39,10 @@ export function DateField({ label, value, onChange }: { label: string; value: st
       <T muted style={styles.label}>{label}</T>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${formatDate(value)}. Tap to change`}
+        accessibilityLabel={t('date.tapToChange', { label, date: formatDate(value, lang) })}
         onPress={() => setOpen(true)}
         style={[styles.input, { backgroundColor: c.background, borderColor: c.border }]}>
-        <T>{formatDate(value)}</T>
+        <T>{formatDate(value, lang)}</T>
         <Ionicons name="calendar-outline" size={18} color={c.textSecondary} />
       </Pressable>
       {open ? (

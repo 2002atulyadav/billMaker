@@ -2,11 +2,13 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { computeTotals, formatBillNo, lineTotal, minNextBillNo } from '@/lib/money';
 import { periodBillDraft } from '@/lib/entries';
+import { AppError } from '@/lib/errors';
 import type { Period } from '@/lib/period';
-import { presetFor } from '@/lib/presets';
+import { presetFor, presetItemName } from '@/lib/presets';
 import type {
   Bill,
   BillDraft,
+  BillLang,
   BillLine,
   BillStatus,
   BillWithLines,
@@ -15,6 +17,7 @@ import type {
   Details,
   Entry,
   Item,
+  Lang,
   Profile,
   ProfileInput,
   Trade,
@@ -34,7 +37,8 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
 
 export function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
   return db.getFirstAsync<Profile>(
-    `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id, trade, next_bill_no
+    `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id, trade,
+            language, bill_language, next_bill_no
      FROM profile WHERE id = 1`,
   );
 }
@@ -52,34 +56,46 @@ export async function saveProfile(db: SQLiteDatabase, p: ProfileInput): Promise<
   );
 }
 
-/** First-run setup: creates the profile and seeds the trade's starter items in one transaction. */
-export async function completeOnboarding(db: SQLiteDatabase, p: ProfileInput, trade: Trade): Promise<void> {
+/**
+ * First-run setup: creates the profile and seeds the trade's starter items (named in the chosen
+ * language) in one transaction. Bills start in the same language as the app.
+ */
+export async function completeOnboarding(db: SQLiteDatabase, p: ProfileInput, trade: Trade, lang: Lang): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
     await saveProfile(txn, p);
-    await txn.runAsync('UPDATE profile SET trade = ? WHERE id = 1', trade);
+    await txn.runAsync('UPDATE profile SET trade = ?, language = ?, bill_language = ? WHERE id = 1', trade, lang, lang);
     for (const item of presetFor(trade).items) {
       await txn.runAsync(
         'INSERT INTO items (name, price_minor, unit) VALUES (?, ?, ?)',
-        item.name, item.price_minor, item.unit,
+        presetItemName(item, lang), item.price_minor, item.unit,
       );
     }
   });
+}
+
+export async function setLanguage(db: SQLiteDatabase, language: Lang): Promise<void> {
+  await db.runAsync('UPDATE profile SET language = ? WHERE id = 1', language);
+}
+
+export async function setBillLanguage(db: SQLiteDatabase, billLanguage: BillLang): Promise<void> {
+  await db.runAsync('UPDATE profile SET bill_language = ? WHERE id = 1', billLanguage);
 }
 
 /**
  * Changes the business type. Only affects units and entry fields offered from now on; existing data is untouched.
  * With addItems, the trade's starter items are added, skipping names that already exist.
  */
-export async function setTrade(db: SQLiteDatabase, trade: Trade, addItems = false): Promise<number> {
+export async function setTrade(db: SQLiteDatabase, trade: Trade, addItems = false, lang: Lang = 'en'): Promise<number> {
   let added = 0;
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync('UPDATE profile SET trade = ? WHERE id = 1', trade);
     if (!addItems) return;
     for (const item of presetFor(trade).items) {
+      const name = presetItemName(item, lang);
       const res = await txn.runAsync(
         `INSERT INTO items (name, price_minor, unit)
          SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM items WHERE lower(name) = lower(?))`,
-        item.name, item.price_minor, item.unit, item.name,
+        name, item.price_minor, item.unit, name,
       );
       added += res.changes;
     }
@@ -99,7 +115,7 @@ export async function setNextBillNo(db: SQLiteDatabase, n: number): Promise<void
   await db.withExclusiveTransactionAsync(async (txn) => {
     const min = await getMinNextBillNo(txn);
     if (!Number.isInteger(n) || n < min) {
-      throw new Error(`Next bill number must be ${min} or higher so it doesn't repeat an existing bill.`);
+      throw new AppError('numbering.tooLow', { min });
     }
     await txn.runAsync('UPDATE profile SET next_bill_no = ? WHERE id = 1', n);
   });
@@ -307,7 +323,7 @@ export async function saveEntry(db: SQLiteDatabase, e: EntryInput): Promise<void
        WHERE id = ? AND bill_id IS NULL`,
       e.date, e.description, e.qty, e.unit, e.unit_price_minor, details, e.id,
     );
-    if (res.changes === 0) throw new Error('This entry is already billed and can’t be changed.');
+    if (res.changes === 0) throw new AppError('entry.locked');
     return;
   }
   await db.runAsync(
@@ -318,7 +334,7 @@ export async function saveEntry(db: SQLiteDatabase, e: EntryInput): Promise<void
 
 export async function deleteEntry(db: SQLiteDatabase, id: number): Promise<void> {
   const res = await db.runAsync('DELETE FROM entries WHERE id = ? AND bill_id IS NULL', id);
-  if (res.changes === 0) throw new Error('This entry is already billed. Delete the bill first to change it.');
+  if (res.changes === 0) throw new AppError('entry.lockedDelete');
 }
 
 /**
@@ -329,7 +345,7 @@ export async function createPeriodBill(db: SQLiteDatabase, clientId: number, per
   let billId = 0;
   await db.withExclusiveTransactionAsync(async (txn) => {
     const client = await getClient(txn, clientId);
-    if (!client) throw new Error('Client not found');
+    if (!client) throw new AppError('client.notFound');
     const profile = await txn.getFirstAsync<{ trade: Trade }>('SELECT trade FROM profile WHERE id = 1');
     const rows = await txn.getAllAsync<EntryRow>(
       `SELECT id, client_id, date, description, qty, unit, unit_price_minor, details, bill_id, NULL AS bill_no
@@ -337,7 +353,7 @@ export async function createPeriodBill(db: SQLiteDatabase, clientId: number, per
        ORDER BY date, id`,
       clientId, period.start, period.end,
     );
-    if (rows.length === 0) throw new Error('No unbilled entries in this period.');
+    if (rows.length === 0) throw new AppError('client.noEntriesInPeriod');
     const entries = rows.map((r) => ({ ...r, details: parseJson<Details>(r.details, {}) }));
     const fields = presetFor(profile?.trade ?? 'general').entryFields;
     billId = await insertBill(txn, periodBillDraft({ client, entries, period, fields, date }));
