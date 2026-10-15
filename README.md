@@ -48,6 +48,10 @@ npm run lint
 - `src/lib/money.ts` – money held as integer paise; Indian digit grouping
 - `src/lib/billHtml.ts` + `src/lib/pdf.ts` – HTML template → `expo-print` PDF → `expo-sharing`
 
+**Backup:** Settings → Backup & export saves everything to one `.json` file that you can keep in Google Drive,
+email or WhatsApp. On a new phone, choose "Restore from backup" on the first screen. Bills can also be
+exported to Excel (CSV), either one row per bill or one row per item, for any month, financial year or date range.
+
 Bill lines are copied into the bill, so editing or deleting a saved item never changes past bills.
 
 For regular clients (e.g. a transport company billing a business monthly), log each trip or job as a

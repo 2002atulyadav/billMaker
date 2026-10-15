@@ -91,7 +91,13 @@ const MIGRATIONS: string[] = [
   ALTER TABLE profile ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
   ALTER TABLE profile ADD COLUMN bill_language TEXT NOT NULL DEFAULT 'en';
   `,
+  `
+  ALTER TABLE profile ADD COLUMN last_backup_at TEXT;
+  `,
 ];
+
+/** Current schema version; backups record it so a newer backup isn't restored into an older app. */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');

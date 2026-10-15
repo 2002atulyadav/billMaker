@@ -5,9 +5,10 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ProfileForm } from '@/components/ProfileForm';
-import { Card, Chip, Row, SectionTitle, T } from '@/components/ui';
+import { Button, Card, Chip, Row, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { completeOnboarding } from '@/db/repo';
+import { useRestore } from '@/hooks/use-restore';
 import { useTheme } from '@/hooks/use-theme';
 import { LANG_NAMES } from '@/i18n';
 import { useT } from '@/i18n/I18nProvider';
@@ -20,6 +21,8 @@ export default function Onboarding() {
   const c = useTheme();
   const { t, unit, lang, setLang } = useT();
   const [preset, setPreset] = useState<TradePreset | null>(null);
+  // Moving to a new phone: bring everything back instead of setting up again.
+  const { restore, busy } = useRestore(() => router.replace('/'));
 
   if (!preset) {
     return (
@@ -48,6 +51,16 @@ export default function Onboarding() {
             </Pressable>
           ))}
         </View>
+        <Card>
+          <T muted>{t('onboarding.haveBackup')}</T>
+          <Button
+            title={t('backup.restore')}
+            variant="secondary"
+            icon={<Ionicons name="cloud-download-outline" size={18} color={c.primary} />}
+            onPress={restore}
+            loading={busy}
+          />
+        </Card>
       </ScrollView>
     );
   }

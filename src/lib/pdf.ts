@@ -40,7 +40,7 @@ export async function shareBillImage(view: RefObject<View | null>, billNo: strin
   await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `Share ${billNo}` });
 }
 
-async function assertCanShare(): Promise<void> {
+export async function assertCanShare(): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is not available on this device');
   }

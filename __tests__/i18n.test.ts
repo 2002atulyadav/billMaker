@@ -86,6 +86,7 @@ const profile: Profile = {
   language: 'hi',
   bill_language: 'hi',
   next_bill_no: 2,
+  last_backup_at: null,
 };
 
 const bill: BillWithLines = {

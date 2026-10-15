@@ -6,11 +6,12 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button, Chip, EmptyState, Field, Row, StatusBadge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { getUnpaidSummary, listBills, type BillFilter } from '@/db/repo';
+import { countBills, getUnpaidSummary, listBills, type BillFilter } from '@/db/repo';
 import type { TKey } from '@/i18n';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/i18n/I18nProvider';
+import { daysSinceBackup, needsBackupReminder } from '@/lib/backup';
 import { formatDate, formatMoney } from '@/lib/money';
 import type { Bill } from '@/types';
 
@@ -23,10 +24,12 @@ export default function Bills() {
   const [filter, setFilter] = useState<BillFilter>('all');
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [unpaid, setUnpaid] = useState({ count: 0, total_minor: 0 });
+  const [billCount, setBillCount] = useState(0);
 
   const reload = useCallback(() => {
     listBills(db, search, filter).then(setBills);
     getUnpaidSummary(db).then(setUnpaid);
+    countBills(db).then(setBillCount);
   }, [db, search, filter]);
   // useFocusEffect re-runs whenever `reload` changes, so this also covers typing in the search box.
   useFocusEffect(
@@ -36,6 +39,8 @@ export default function Bills() {
   );
 
   const currency = profile?.currency ?? '₹';
+  const remindBackup = profile ? needsBackupReminder(billCount, profile.last_backup_at) : false;
+  const backupDays = daysSinceBackup(profile?.last_backup_at ?? null);
 
   return (
     <View style={{ flex: 1 }}>
@@ -56,6 +61,21 @@ export default function Bills() {
                 <T style={{ fontSize: 22, fontWeight: '700', color: c.warning }}>
                   {formatMoney(unpaid.total_minor, currency)}
                 </T>
+              </Pressable>
+            ) : null}
+            {remindBackup ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/settings')}
+                style={[styles.reminder, { backgroundColor: c.card, borderColor: c.border }]}>
+                <Ionicons name="cloud-upload-outline" size={22} color={c.primary} />
+                <View style={{ flex: 1 }}>
+                  <T style={{ fontWeight: '600' }}>{t('backup.reminderTitle')}</T>
+                  <T muted style={{ fontSize: 13 }}>
+                    {backupDays === null ? t('backup.reminderNever') : tn('backup.reminderOld', backupDays)}
+                  </T>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
               </Pressable>
             ) : null}
             <Field
@@ -117,6 +137,14 @@ const FILTERS = [
 
 const styles = StyleSheet.create({
   dues: { padding: Spacing.four, borderRadius: 12, borderWidth: 1, gap: 2 },
+  reminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

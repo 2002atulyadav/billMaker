@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { BACKUP_TABLES, type Backup, type BackupTable, type Row } from '@/lib/backup';
 import { computeTotals, formatBillNo, lineTotal, minNextBillNo } from '@/lib/money';
 import { periodBillDraft } from '@/lib/entries';
 import { AppError } from '@/lib/errors';
@@ -38,7 +39,7 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
 export function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
   return db.getFirstAsync<Profile>(
     `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id, trade,
-            language, bill_language, next_bill_no
+            language, bill_language, next_bill_no, last_backup_at
      FROM profile WHERE id = 1`,
   );
 }
@@ -371,4 +372,73 @@ export async function listClientBills(db: SQLiteDatabase, clientId: number, peri
     clientId, period.start, period.end,
   );
   return rows.map(toBill);
+}
+
+// ---- backup & export ----
+
+/** Every row of every table, for a backup file. */
+export async function readAllTables(db: SQLiteDatabase): Promise<Record<BackupTable, Row[]>> {
+  const out = {} as Record<BackupTable, Row[]>;
+  for (const table of BACKUP_TABLES) {
+    out[table] = await db.getAllAsync<Row>(`SELECT * FROM ${table} ORDER BY rowid`);
+  }
+  return out;
+}
+
+/**
+ * Replaces all data with the backup in one transaction, so a bad file leaves the current data untouched.
+ * Only columns that exist in this version of the schema are written; newer columns take their defaults.
+ */
+export async function restoreBackup(db: SQLiteDatabase, backup: Backup): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const table of [...BACKUP_TABLES].reverse()) {
+      await txn.runAsync(`DELETE FROM ${table}`);
+    }
+    for (const table of BACKUP_TABLES) {
+      const cols = new Set(
+        (await txn.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)).map((c) => c.name),
+      );
+      for (const row of backup.tables[table]) {
+        const keys = Object.keys(row).filter((k) => cols.has(k));
+        if (!keys.length) continue;
+        await txn.runAsync(
+          `INSERT INTO ${table} (${keys.map((k) => `"${k}"`).join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`,
+          ...keys.map((k) => row[k]),
+        );
+      }
+    }
+    // The data on the phone now matches that backup file.
+    await txn.runAsync('UPDATE profile SET last_backup_at = ? WHERE id = 1', backup.created_at || null);
+  });
+}
+
+export async function markBackedUp(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(`UPDATE profile SET last_backup_at = datetime('now') WHERE id = 1`);
+}
+
+export async function countBills(db: SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM bills');
+  return row?.n ?? 0;
+}
+
+/** Bills dated in the period (all bills when null), oldest first, with their lines, for CSV export. */
+export async function listBillsForExport(db: SQLiteDatabase, period: Period | null): Promise<BillWithLines[]> {
+  const rows = await db.getAllAsync<BillRow>(
+    `SELECT * FROM bills WHERE ?1 IS NULL OR date BETWEEN ?1 AND ?2 ORDER BY date, id`,
+    period?.start ?? null, period?.end ?? null,
+  );
+  const lines = await db.getAllAsync<Omit<BillLine, 'details'> & { details: string; bill_id: number }>(
+    `SELECT bill_id, description, qty, unit, unit_price_minor, line_total_minor, entry_date, details
+     FROM bill_items
+     WHERE bill_id IN (SELECT id FROM bills WHERE ?1 IS NULL OR date BETWEEN ?1 AND ?2)
+     ORDER BY bill_id, position`,
+    period?.start ?? null, period?.end ?? null,
+  );
+  const byBill = new Map<number, BillLine[]>();
+  for (const { bill_id, ...l } of lines) {
+    const list = byBill.get(bill_id) ?? [];
+    list.push({ ...l, details: parseJson<Details>(l.details, {}) });
+    byBill.set(bill_id, list);
+  }
+  return rows.map((r) => ({ ...toBill(r), lines: byBill.get(r.id) ?? [] }));
 }

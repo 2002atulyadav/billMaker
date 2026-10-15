@@ -14,6 +14,7 @@ const profile: Profile = {
   language: 'en',
   bill_language: 'en',
   next_bill_no: 4,
+  last_backup_at: null,
 };
 const client: Client = { id: 1, name: 'ABC <Logistics>', phone: '9876543210', address: 'MIDC\nPune' };
 
