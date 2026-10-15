@@ -13,13 +13,17 @@ Offline billing app (Expo SDK 57, React Native, TypeScript): business profile �
 Uses npm (`package-lock.json`), so use `npx`, not `bunx`. Requires Node 20.19+; the shell defaults to Node 18, so run `source ~/.nvm/nvm.sh && nvm use 22` first.
 
 ```bash
-npx expo start                       # dev server (Expo Go works; no custom native modules)
+npx expo start                       # dev server; opens the development build (press s to switch to Expo Go)
 npm test                             # jest (jest-expo preset), tests in __tests__/ (pure lib code only)
 npx jest __tests__/money.test.ts     # single file
 npx jest -t "formatMoney"            # single test by name
 npm run typecheck                    # tsc --noEmit
 npm run lint                         # expo lint
+npx eas-cli@latest build --profile development --platform android   # dev build (needed for voice)
+npx eas-cli@latest build --profile preview --platform android       # installable APK for testing
 ```
+
+`expo-speech-recognition` is a native module, so voice input only works in a development or release build. In Expo Go the app still runs: the voice sheet hides the mic and offers typing only. Changing native config (`app.json` plugins, permissions) needs a rebuild.
 
 ## Architecture
 
@@ -34,6 +38,7 @@ npm run lint                         # expo lint
 - **Clients, work log, period bills**: `clients` hold regular customers. `entries` are work logged against a client (a trip, a visit), and stay unbilled (`bill_id IS NULL`) until `createPeriodBill` turns a date range into one bill and stamps their `bill_id` in the same transaction. Billed entries are locked (`saveEntry`/`deleteEntry` refuse them). Deleting the bill frees them via `ON DELETE SET NULL`. Period bills store `period_start/end` and a snapshot of the trade's columns in `bills.detail_fields`; each line carries `entry_date` and `details` (JSON). Statements (`src/lib/statementHtml.ts`) list a client's bills in a period with paid and outstanding totals. Period logic, including the Indian FY (Apr–Mar), is in `src/lib/period.ts`.
 - **Trade drives the UI**: `presetFor(profile.trade)` gives the units (`unitsFor`) and the work-entry fields (`entryFields`, e.g. From/To/Vehicle no. for transport). The trade can be changed in Settings; existing data is never rewritten.
 - **Languages**: every user-facing string goes through `src/i18n/`. `en.ts` is the source of truth and defines `TKey`. `hi.ts` is typed `Dict`, so a missing translation is a compile error. In components use `useT()` (`t`, `tn` for `_one`/`_other` counts, `unit`, `dyn` for runtime keys like `field.${key}`). Never hard-code UI text. The app language (`profile.language`) and the **bill language** (`profile.bill_language`: `en`/`hi`/`both`) are separate. Printed output (`billToHtml`, `statementToHtml`, `BillPaper`, `billMessage`) uses `makeBillTranslator(profile.bill_language)`, where `both` renders "Total / कुल". `formatDate`/`formatPeriod` take a `lang`. Repo errors meant for users throw `AppError(key)`; show them with `errorText(t, err)`.
+- **Voice-to-bill**: `src/lib/voiceParse.ts` (pure, heavily tested) turns a transcript such as "2 किलो चावल 60 रुपये किलो और 1 litre milk 56" into `VoiceLine`s. It handles English, Hindi and Hinglish number words and units, splits on and/aur/और/commas, and fuzzy-matches saved items for their name, unit and rate. A spoken price is per unit unless it's marked as a total or the quantity was in grams/ml. `src/hooks/use-speech.ts` looks up the native module with `requireOptionalNativeModule`; never import `expo-speech-recognition` at runtime, because that throws in Expo Go. `VoiceBillSheet` shows the editable transcript and the parsed lines live, and nothing reaches the bill until the user confirms.
 - **Data refresh**: `useProfile()` and list screens reload in `useFocusEffect`, so returning to a screen picks up changes made elsewhere. `useProfile` returns `undefined` while loading and `null` when no profile exists.
 - **UI**: shared primitives (`T`, `Card`, `Button`, `Field`, `Row`, `SectionTitle`) are in `src/components/ui.tsx`. Colors come from `useTheme()` (`src/constants/theme.ts`, light/dark). Path alias: `@/*` → `src/*`.
 - `app.json` enables `typedRoutes` and `reactCompiler`.

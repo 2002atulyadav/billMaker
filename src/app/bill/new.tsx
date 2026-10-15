@@ -7,6 +7,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { DateField } from '@/components/DateField';
 import { ItemPickerModal } from '@/components/ItemPickerModal';
 import { Button, Card, Chip, Field, Row, SectionTitle, T } from '@/components/ui';
+import { VoiceBillSheet } from '@/components/VoiceBillSheet';
 import { Spacing } from '@/constants/theme';
 import { createBill, getBill, listClients, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
@@ -17,6 +18,7 @@ import { isSameCustomer, suggestCustomers } from '@/lib/customers';
 import {
   computeTotals,
   formatMoney,
+  formatQty,
   isValidISODate,
   lineTotal,
   minorToInput,
@@ -24,6 +26,7 @@ import {
   parseQty,
   todayISO,
 } from '@/lib/money';
+import type { VoiceLine } from '@/lib/voiceParse';
 import type { BillWithLines, Client, Item } from '@/types';
 
 type DraftLine = { key: number; description: string; qty: string; unit: string; price: string };
@@ -47,6 +50,7 @@ export default function NewBill() {
   const [recent, setRecent] = useState<RecentCustomer[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lineErrors, setLineErrors] = useState<Record<number, LineErrors>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -118,6 +122,20 @@ export default function NewBill() {
       }
       return [...ls, newLine({ description: item.name, qty: '1', unit: item.unit, price: minorToInput(item.price_minor) })];
     });
+  }
+
+  function addSpoken(spoken: VoiceLine[]) {
+    setLines((ls) => [
+      ...ls,
+      ...spoken.map((l) =>
+        newLine({
+          description: l.description,
+          qty: formatQty(l.qty),
+          unit: l.unit,
+          price: l.price_minor !== null ? minorToInput(l.price_minor) : '',
+        }),
+      ),
+    ]);
   }
 
   async function save() {
@@ -264,6 +282,12 @@ export default function NewBill() {
               onPress={() => setLines((ls) => [...ls, newLine({ description: '', qty: '1', unit: '', price: '' })])}
             />
           </Row>
+          <Button
+            title={t('newBill.speak')}
+            variant="secondary"
+            icon={<Ionicons name="mic" size={18} color={c.primary} />}
+            onPress={() => setVoiceOpen(true)}
+          />
         </Card>
 
         <Card>
@@ -304,6 +328,13 @@ export default function NewBill() {
         currency={currency}
         onPick={addFromItem}
         onClose={() => setPickerOpen(false)}
+      />
+      <VoiceBillSheet
+        visible={voiceOpen}
+        items={items}
+        currency={currency}
+        onAdd={addSpoken}
+        onClose={() => setVoiceOpen(false)}
       />
     </KeyboardAvoidingView>
   );

@@ -8,7 +8,8 @@
     "scheme": "billmaker",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.atulyadav.billmaker"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.atulyadav.billmaker"
     },
     "web": {
       "output": "static",
@@ -41,6 +43,16 @@
           "supportedLocales": [
             "en",
             "hi"
+          ]
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone so you can speak bill items.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to turn your speech into bill items.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
           ]
         }
       ]

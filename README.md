@@ -4,7 +4,8 @@ Simple offline billing app for shopkeepers, taxi drivers and freelancers: save y
 rates, create a bill, and share it as a PDF over WhatsApp, email, or any other app.
 
 Built with Expo SDK 57 (React Native + TypeScript). All data stays on the phone (SQLite).
-Available in English and Hindi. Bills can be printed in English, Hindi or both.
+Available in English and Hindi. Bills can be printed in English, Hindi or both. Items can be added by
+speaking ("2 kilo chawal 60 rupaye kilo aur 1 litre doodh") or typing the same sentence.
 
 ## Run it
 
@@ -15,10 +16,16 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with **Expo Go** (Android) or the Camera app (iOS).
+Most of the app runs in **Expo Go** (press `s` after `expo start` to switch to it). Voice input needs a
+development build, because speech recognition is a native module:
 
 ```bash
-npm test            # unit tests (money math, bill HTML)
+npx eas-cli@latest build --profile development --platform android   # or: npx expo run:android
+npx eas-cli@latest build --profile preview --platform android       # shareable test APK
+```
+
+```bash
+npm test            # unit tests (money math, bill HTML, voice parsing)
 npm run typecheck
 npm run lint
 ```
