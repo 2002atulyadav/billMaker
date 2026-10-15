@@ -86,7 +86,7 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
         )}
       </Card>
 
-      <Row>
+      <Row style={{ alignItems: 'stretch' }}>
         <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
         <Button
           title={t(mode === 'bill' ? 'client.createBill' : 'period.sharePdf')}

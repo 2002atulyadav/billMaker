@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ItemFormModal } from '@/components/ItemFormModal';
-import { Button, EmptyState, T } from '@/components/ui';
+import { Button, EmptyState, Fab, FAB_CLEARANCE, screenContent, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { deleteItem, listItems, saveItem } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
@@ -55,7 +55,7 @@ export default function Items() {
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
-        contentContainerStyle={{ padding: Spacing.four, gap: Spacing.two, paddingBottom: 120 }}
+        contentContainerStyle={[screenContent, { gap: Spacing.two, paddingBottom: FAB_CLEARANCE }]}
         ListEmptyComponent={
           <EmptyState
             title={t('items.empty')}
@@ -78,13 +78,13 @@ export default function Items() {
           </Pressable>
         )}
       />
-      <View style={styles.fab}>
+      <Fab>
         <Button
           title={t('items.add')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => open(null)}
         />
-      </View>
+      </Fab>
       <ItemFormModal
         visible={formOpen}
         item={editing}
@@ -110,5 +110,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  fab: { position: 'absolute', left: Spacing.four, right: Spacing.four, bottom: Spacing.four },
 });

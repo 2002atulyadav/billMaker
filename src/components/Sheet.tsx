@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { T } from '@/components/ui';
+import { CONTENT_MAX_WIDTH, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -21,10 +22,11 @@ export function Sheet({
   children: ReactNode;
 }) {
   const c = useTheme();
+  const pad = useSheetPadding();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: c.card }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={sheetStyles.backdrop}>
+        <View style={[sheetStyles.sheet, pad, { backgroundColor: c.card }]}>
           {visible ? (
             <ScrollView contentContainerStyle={{ gap: Spacing.four }} keyboardShouldPersistTaps="handled">
               <T style={{ fontSize: 20, fontWeight: '700' }}>{title}</T>
@@ -37,13 +39,25 @@ export function Sheet({
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Bottom padding that clears the home indicator (34pt on Face ID iPhones, 0 on Touch ID ones and most
+ * Androids), so the last button in a sheet is never under it.
+ */
+export function useSheetPadding() {
+  const insets = useSafeAreaInsets();
+  return { paddingBottom: Math.max(Spacing.five, insets.bottom + Spacing.three) };
+}
+
+/** Shared by every bottom sheet (Sheet, the item form and the item picker). */
+export const sheetStyles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: Spacing.five,
-    paddingBottom: Spacing.six,
     maxHeight: '92%',
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
 });

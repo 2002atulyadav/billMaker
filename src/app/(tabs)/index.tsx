@@ -4,7 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
-import { Button, Chip, EmptyState, Field, Row, StatusBadge, T } from '@/components/ui';
+import { Button, Chip, EmptyState, Fab, FAB_CLEARANCE, Field, Row, screenContent, StatusBadge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { countBills, getUnpaidSummary, listBills, type BillFilter } from '@/db/repo';
 import type { TKey } from '@/i18n';
@@ -48,7 +48,7 @@ export default function Bills() {
         data={bills ?? []}
         keyExtractor={(b) => String(b.id)}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: Spacing.four, gap: Spacing.two, paddingBottom: 120 }}
+        contentContainerStyle={[screenContent, { gap: Spacing.two, paddingBottom: FAB_CLEARANCE }]}
         ListHeaderComponent={
           <View style={{ marginBottom: Spacing.two, gap: Spacing.three }}>
             {unpaid.count > 0 ? (
@@ -118,13 +118,13 @@ export default function Bills() {
           </Pressable>
         )}
       />
-      <View style={styles.fab}>
+      <Fab>
         <Button
           title={t('bills.new')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => router.push('/bill/new')}
         />
-      </View>
+      </Fab>
     </View>
   );
 }
@@ -153,5 +153,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  fab: { position: 'absolute', left: Spacing.four, right: Spacing.four, bottom: Spacing.four },
 });

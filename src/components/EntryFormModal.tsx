@@ -156,7 +156,7 @@ function EntryForm({ clientId, entry, items, units, fields, currency, onClose, o
         </T>
       ) : null}
 
-      <Row style={{ gap: Spacing.two }}>
+      <Row style={{ gap: Spacing.two, alignItems: 'stretch' }}>
         <Button title={t(savedCount ? 'common.done' : 'common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
         <Button title={t('common.save')} onPress={() => save(false)} loading={saving} style={{ flex: 1 }} />
       </Row>

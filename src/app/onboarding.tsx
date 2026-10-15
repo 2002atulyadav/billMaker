@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ProfileForm } from '@/components/ProfileForm';
-import { Button, Card, Chip, Row, SectionTitle, T } from '@/components/ui';
+import { Button, Card, Chip, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { completeOnboarding } from '@/db/repo';
 import { useRestore } from '@/hooks/use-restore';
@@ -26,7 +26,7 @@ export default function Onboarding() {
 
   if (!preset) {
     return (
-      <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.three }}>
+      <Screen contentContainerStyle={{ gap: Spacing.three }}>
         {/* Language first, before any other text has to be read. */}
         <Row style={{ justifyContent: 'flex-end' }}>
           {LANGS.map((l) => (
@@ -61,13 +61,12 @@ export default function Onboarding() {
             loading={busy}
           />
         </Card>
-      </ScrollView>
+      </Screen>
     );
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.four }} keyboardShouldPersistTaps="handled">
+    <Screen>
         <Row style={{ justifyContent: 'space-between' }}>
           <Row>
             <Ionicons name={preset.icon} size={20} color={c.primary} />
@@ -104,8 +103,7 @@ export default function Onboarding() {
             router.replace('/');
           }}
         />
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }
 

@@ -120,7 +120,7 @@ function VoiceBody({
         </View>
       ) : null}
 
-      <Row>
+      <Row style={{ alignItems: 'stretch' }}>
         <Button title={t('common.cancel')} variant="secondary" style={{ flex: 1 }} onPress={onClose} />
         <Button
           title={lines.length ? tn('voice.add', lines.length) : t('voice.addNone')}

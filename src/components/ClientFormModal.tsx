@@ -72,7 +72,7 @@ function ClientForm({
       />
       <Field label={t('profile.phone')} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
       <Field label={t('clients.address')} multiline value={address} onChangeText={setAddress} />
-      <Row>
+      <Row style={{ alignItems: 'stretch' }}>
         <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
         <Button title={t('common.save')} onPress={save} loading={saving} style={{ flex: 1 }} />
       </Row>

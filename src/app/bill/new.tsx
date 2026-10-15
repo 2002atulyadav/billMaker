@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DateField } from '@/components/DateField';
 import { ItemPickerModal } from '@/components/ItemPickerModal';
-import { Button, Card, Chip, Field, Row, SectionTitle, T } from '@/components/ui';
+import { Button, Card, Chip, Field, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { VoiceBillSheet } from '@/components/VoiceBillSheet';
 import { Spacing } from '@/constants/theme';
 import { createBill, getBill, listClients, listItems, listRecentCustomers, type RecentCustomer } from '@/db/repo';
@@ -184,11 +184,8 @@ export default function NewBill() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={100}>
-      <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.four }} keyboardShouldPersistTaps="handled">
+    <>
+      <Screen>
         <Card>
           <SectionTitle>{t('newBill.customer')}</SectionTitle>
           <Field placeholder={t('newBill.customerName')} value={customerName} onChangeText={setCustomerName} />
@@ -229,7 +226,7 @@ export default function NewBill() {
             return (
               <View key={l.key} style={[styles.line, { borderColor: c.border }]}>
                 <Row>
-                  <T muted style={{ width: 20 }}>{i + 1}.</T>
+                  <T muted style={{ minWidth: 20 }}>{i + 1}.</T>
                   <View style={{ flex: 1 }}>
                     <Field
                       placeholder={t('newBill.itemPlaceholder')}
@@ -266,7 +263,7 @@ export default function NewBill() {
               </View>
             );
           })}
-          <Row>
+          <Row style={{ alignItems: 'stretch' }}>
             <Button
               title={t('newBill.savedItem')}
               variant="secondary"
@@ -320,7 +317,7 @@ export default function NewBill() {
 
         {formError ? <T style={{ color: c.danger, textAlign: 'center' }}>{formError}</T> : null}
         <Button title={t('newBill.save')} onPress={save} loading={saving} />
-      </ScrollView>
+      </Screen>
 
       <ItemPickerModal
         visible={pickerOpen}
@@ -336,7 +333,7 @@ export default function NewBill() {
         onAdd={addSpoken}
         onClose={() => setVoiceOpen(false)}
       />
-    </KeyboardAvoidingView>
+    </>
   );
 }
 

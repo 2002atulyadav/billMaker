@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, View } from 'react-native';
 
+import { sheetStyles, useSheetPadding } from '@/components/Sheet';
 import { Button, Chip, Field, Row, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -28,12 +29,13 @@ export function ItemFormModal({
   onDelete?: (id: number) => void;
 }) {
   const c = useTheme();
+  const pad = useSheetPadding();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: c.card }]}>
+        style={sheetStyles.backdrop}>
+        <View style={[sheetStyles.sheet, pad, { backgroundColor: c.card }]}>
           {/* Keyed so each open starts with fresh state from `item`. */}
           {visible ? (
             <ItemForm
@@ -108,7 +110,7 @@ function ItemForm({
           ))}
         </Row>
       </View>
-      <Row>
+      <Row style={{ alignItems: 'stretch' }}>
         <Button title={t('common.cancel')} variant="secondary" onPress={onClose} style={{ flex: 1 }} />
         <Button title={t('common.save')} onPress={save} style={{ flex: 1 }} />
       </Row>
@@ -116,14 +118,3 @@ function ItemForm({
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: Spacing.five,
-    paddingBottom: Spacing.six,
-    maxHeight: '90%',
-  },
-});

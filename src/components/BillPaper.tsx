@@ -39,7 +39,7 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
           <P muted>{formatDate(bill.date, tr.lang)}</P>
           {isPaid ? (
             <View style={styles.stamp}>
-              <Text style={styles.stampText}>{tr.t('pdf.paid')}</Text>
+              <Text maxFontSizeMultiplier={PAPER_FONT_SCALE} style={styles.stampText}>{tr.t('pdf.paid')}</Text>
             </View>
           ) : null}
         </View>
@@ -143,11 +143,19 @@ function UpiQr({ text, size }: { text: string; size: number }) {
   );
 }
 
+const PAPER_FONT_SCALE = 1.2;
 const PAPER = { text: '#111418', muted: '#60646C', border: '#E5E7EB', accent: '#1F6FEB', paid: '#1A7F37' };
 
 /** Text with fixed paper colors (ignores dark mode). */
 function P({ style, muted, ...props }: TextProps & { muted?: boolean }) {
-  return <Text {...props} style={[{ color: muted ? PAPER.muted : PAPER.text, fontSize: 15 }, style]} />;
+  // Capped lower than app text: the shared image should look like a bill, not grow with the phone's text size.
+  return (
+    <Text
+      maxFontSizeMultiplier={PAPER_FONT_SCALE}
+      {...props}
+      style={[{ color: muted ? PAPER.muted : PAPER.text, fontSize: 15 }, style]}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

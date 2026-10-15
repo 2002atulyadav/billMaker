@@ -2,12 +2,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { ClientFormModal } from '@/components/ClientFormModal';
 import { EntryFormModal } from '@/components/EntryFormModal';
 import { PeriodModal } from '@/components/PeriodModal';
-import { Button, Card, Chip, EmptyState, Row, SectionTitle, StatusBadge, T } from '@/components/ui';
+import { Button, Card, Chip, EmptyState, Fab, FAB_CLEARANCE, Row, Screen, SectionTitle, StatusBadge, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import {
   createPeriodBill,
@@ -172,7 +172,7 @@ export default function ClientDetail() {
           ),
         }}
       />
-      <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.four, paddingBottom: 120 }}>
+      <Screen contentContainerStyle={{ paddingBottom: FAB_CLEARANCE }}>
         <Card>
           {client.phone ? <T muted>{client.phone}</T> : null}
           {client.address ? <T muted>{client.address}</T> : null}
@@ -191,7 +191,7 @@ export default function ClientDetail() {
               </View>
             ) : null}
           </Row>
-          <Row>
+          <Row style={{ alignItems: 'stretch' }}>
             <Button
               title={t('client.createBill')}
               style={{ flex: 1 }}
@@ -291,15 +291,15 @@ export default function ClientDetail() {
             ))}
           </View>
         ) : null}
-      </ScrollView>
+      </Screen>
 
-      <View style={styles.fab}>
+      <Fab overHomeIndicator>
         <Button
           title={t('client.addEntry')}
           icon={<Ionicons name="add" size={20} color={c.primaryText} />}
           onPress={() => openEntry(null)}
         />
-      </View>
+      </Fab>
 
       <EntryFormModal
         visible={entryOpen}
@@ -352,5 +352,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  fab: { position: 'absolute', left: Spacing.four, right: Spacing.four, bottom: Spacing.four },
 });

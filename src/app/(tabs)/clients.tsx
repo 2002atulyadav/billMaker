@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ClientFormModal } from '@/components/ClientFormModal';
-import { Button, EmptyState, T } from '@/components/ui';
+import { Button, EmptyState, Fab, FAB_CLEARANCE, screenContent, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { listClients, saveClient, type ClientSummary } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
@@ -34,7 +34,7 @@ export default function Clients() {
       <FlatList
         data={clients ?? []}
         keyExtractor={(cl) => String(cl.id)}
-        contentContainerStyle={{ padding: Spacing.four, gap: Spacing.two, paddingBottom: 120 }}
+        contentContainerStyle={[screenContent, { gap: Spacing.two, paddingBottom: FAB_CLEARANCE }]}
         ListEmptyComponent={
           clients === null ? null : (
             <EmptyState
@@ -68,13 +68,13 @@ export default function Clients() {
           </Pressable>
         )}
       />
-      <View style={styles.fab}>
+      <Fab>
         <Button
           title={t('clients.add')}
           icon={<Ionicons name="person-add-outline" size={20} color={c.primaryText} />}
           onPress={() => setFormOpen(true)}
         />
-      </View>
+      </Fab>
       <ClientFormModal
         visible={formOpen}
         client={null}
@@ -98,5 +98,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  fab: { position: 'absolute', left: Spacing.four, right: Spacing.four, bottom: Spacing.four },
 });

@@ -3,10 +3,10 @@ import * as Linking from 'expo-linking';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { BillPaper } from '@/components/BillPaper';
-import { Button, Row, T } from '@/components/ui';
+import { Button, Row, Screen, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { deleteBill, getBill, setBillStatus } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
@@ -88,7 +88,7 @@ export default function BillDetail() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: Spacing.four, gap: Spacing.three }}>
+    <Screen contentContainerStyle={{ gap: Spacing.three }}>
       <Stack.Screen options={{ title: bill.bill_no }} />
 
       <BillPaper ref={paperRef} bill={bill} profile={profile} />
@@ -114,7 +114,7 @@ export default function BillDetail() {
           onPress={sendWhatsApp}
         />
       ) : null}
-      <Row>
+      <Row style={{ alignItems: 'stretch' }}>
         <Button
           title={t('bill.sharePdf')}
           variant="secondary"
@@ -156,6 +156,6 @@ export default function BillDetail() {
         />
       ) : null}
       <Button title={t('bill.delete')} variant="danger" onPress={confirmDelete} />
-    </ScrollView>
+    </Screen>
   );
 }
