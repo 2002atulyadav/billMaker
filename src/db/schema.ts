@@ -124,6 +124,10 @@ const MIGRATIONS: string[] = [
   ${BACKFILL_PAYMENTS}
   ALTER TABLE profile ADD COLUMN app_lock INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  ALTER TABLE profile ADD COLUMN bill_theme TEXT NOT NULL DEFAULT 'classic';
+  ALTER TABLE profile ADD COLUMN bill_accent TEXT NOT NULL DEFAULT 'blue';
+  `,
 ];
 
 /** Current schema version; backups record it so a newer backup isn't restored into an older app. */

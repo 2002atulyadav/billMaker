@@ -6,6 +6,7 @@ import { useAppLock } from '@/components/AppLock';
 import { AppLockCard } from '@/components/AppLockCard';
 import { BackupCard } from '@/components/BackupCard';
 import { BillNumberCard } from '@/components/BillNumberCard';
+import { BillThemeCard } from '@/components/BillThemeCard';
 import { BusinessTypeCard } from '@/components/BusinessTypeCard';
 import { LanguageCard } from '@/components/LanguageCard';
 import { ProfileForm } from '@/components/ProfileForm';
@@ -36,6 +37,7 @@ export default function Settings() {
           }}
         />
         <LanguageCard billLanguage={profile.bill_language} />
+        <BillThemeCard profile={profile} />
         <BusinessTypeCard trade={profile.trade} />
         <BillNumberCard version={savedCount} />
         <AppLockCard />

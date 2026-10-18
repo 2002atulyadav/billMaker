@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { BACKUP_TABLES, type Backup, type BackupTable, type Row } from '@/lib/backup';
+import type { AccentId, BillThemeId } from '@/lib/billTheme';
 import { BACKFILL_PAYMENTS } from '@/db/schema';
 import { computeTotals, formatBillNo, lineTotal, minNextBillNo, todayISO } from '@/lib/money';
 import { periodBillDraft } from '@/lib/entries';
@@ -40,7 +41,7 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
 export function getProfile(db: SQLiteDatabase): Promise<Profile | null> {
   return db.getFirstAsync<Profile>(
     `SELECT business_name, owner_name, phone, address, logo_uri, currency, bill_prefix, upi_id, trade,
-            language, bill_language, next_bill_no, last_backup_at, app_lock
+            language, bill_language, next_bill_no, last_backup_at, app_lock, bill_theme, bill_accent
      FROM profile WHERE id = 1`,
   );
 }
@@ -62,10 +63,19 @@ export async function saveProfile(db: SQLiteDatabase, p: ProfileInput): Promise<
  * First-run setup: creates the profile and seeds the trade's starter items (named in the chosen
  * language) in one transaction. Bills start in the same language as the app.
  */
-export async function completeOnboarding(db: SQLiteDatabase, p: ProfileInput, trade: Trade, lang: Lang): Promise<void> {
+export async function completeOnboarding(
+  db: SQLiteDatabase,
+  p: ProfileInput,
+  trade: Trade,
+  lang: Lang,
+  theme: { theme: BillThemeId; accent: AccentId } = { theme: 'classic', accent: 'blue' },
+): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
     await saveProfile(txn, p);
-    await txn.runAsync('UPDATE profile SET trade = ?, language = ?, bill_language = ? WHERE id = 1', trade, lang, lang);
+    await txn.runAsync(
+      'UPDATE profile SET trade = ?, language = ?, bill_language = ?, bill_theme = ?, bill_accent = ? WHERE id = 1',
+      trade, lang, lang, theme.theme, theme.accent,
+    );
     for (const item of presetFor(trade).items) {
       await txn.runAsync(
         'INSERT INTO items (name, price_minor, unit) VALUES (?, ?, ?)',
@@ -524,6 +534,11 @@ export async function restoreBackup(db: SQLiteDatabase, backup: Backup): Promise
     // The data on the phone now matches that backup file. The app lock is a per-phone choice, so it starts off.
     await txn.runAsync('UPDATE profile SET last_backup_at = ?, app_lock = 0 WHERE id = 1', backup.created_at || null);
   });
+}
+
+/** Saves the bill design used for every bill and statement the owner shares. */
+export async function setBillTheme(db: SQLiteDatabase, theme: BillThemeId, accent: AccentId): Promise<void> {
+  await db.runAsync('UPDATE profile SET bill_theme = ?, bill_accent = ? WHERE id = 1', theme, accent);
 }
 
 export async function setAppLock(db: SQLiteDatabase, on: boolean): Promise<void> {

@@ -5,6 +5,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { BillThemePicker } from '@/components/BillThemePicker';
 import { ProfileForm } from '@/components/ProfileForm';
 import { Button, Card, Chip, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -14,6 +15,7 @@ import { useRestore } from '@/hooks/use-restore';
 import { useTheme } from '@/hooks/use-theme';
 import { LANG_NAMES } from '@/i18n';
 import { useT } from '@/i18n/I18nProvider';
+import type { AccentId, BillThemeId } from '@/lib/billTheme';
 import { formatMoney } from '@/lib/money';
 import { PRESETS, presetItemName, type TradePreset } from '@/lib/presets';
 import { LANGS } from '@/types';
@@ -23,6 +25,8 @@ export default function Onboarding() {
   const c = useTheme();
   const { t, unit, lang, setLang } = useT();
   const [preset, setPreset] = useState<TradePreset | null>(null);
+  const [billTheme, setBillTheme] = useState<BillThemeId>('classic');
+  const [billAccent, setBillAccent] = useState<AccentId>('blue');
   const dark = useColorScheme() === 'dark';
   // Moving to a new phone: bring everything back instead of setting up again.
   const { restore, busy } = useRestore(() => router.replace('/'));
@@ -108,9 +112,35 @@ export default function Onboarding() {
           initial={{ bill_prefix: preset.billPrefix }}
           submitLabel={t('onboarding.start')}
           onSubmit={async (p) => {
-            await completeOnboarding(db, p, preset.trade, lang);
+            await completeOnboarding(db, p, preset.trade, lang, { theme: billTheme, accent: billAccent });
             router.replace('/');
           }}
+          beforeSubmit={(draft) => (
+            <Card>
+              <SectionTitle>{t('billStyle.title')}</SectionTitle>
+              <T muted style={{ fontSize: 12 }}>{t('billStyle.hint')}</T>
+              <BillThemePicker
+                profile={{
+                  ...draft,
+                  business_name: draft.business_name || t('billStyle.sampleBusiness'),
+                  trade: preset.trade,
+                  language: lang,
+                  bill_language: lang,
+                  next_bill_no: 1,
+                  last_backup_at: null,
+                  app_lock: 0,
+                  bill_theme: billTheme,
+                  bill_accent: billAccent,
+                }}
+                theme={billTheme}
+                accent={billAccent}
+                onChange={(th, a) => {
+                  setBillTheme(th);
+                  setBillAccent(a);
+                }}
+              />
+            </Card>
+          )}
         />
     </Screen>
   );

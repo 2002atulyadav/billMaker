@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button, Card, Field, Row, SectionTitle, T } from '@/components/ui';
@@ -25,10 +25,13 @@ export function ProfileForm({
   initial,
   submitLabel,
   onSubmit,
+  beforeSubmit,
 }: {
   initial?: Partial<ProfileInput> | null;
   submitLabel: string;
   onSubmit: (p: ProfileInput) => Promise<void>;
+  /** extra section above the submit button, given the form as typed so far (onboarding's bill-style preview) */
+  beforeSubmit?: (draft: ProfileInput) => ReactNode;
 }) {
   const c = useTheme();
   const { t } = useT();
@@ -144,6 +147,7 @@ export function ProfileForm({
         <T muted style={{ fontSize: 12 }}>{t('profile.upiHint')}</T>
       </Card>
 
+      {beforeSubmit?.(p)}
       <Button title={submitLabel} onPress={submit} loading={saving} />
     </View>
   );

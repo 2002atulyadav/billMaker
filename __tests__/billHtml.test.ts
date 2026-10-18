@@ -17,6 +17,8 @@ const profile: Profile = {
   next_bill_no: 2,
   last_backup_at: null,
   app_lock: 0,
+  bill_theme: 'classic',
+  bill_accent: 'blue',
 };
 
 const bill: BillWithLines = {

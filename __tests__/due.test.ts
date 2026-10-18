@@ -30,7 +30,7 @@ describe('due dates', () => {
 const profile: Profile = {
   business_name: 'Sharma Transport', owner_name: '', phone: '', address: '', logo_uri: null, currency: '₹',
   bill_prefix: 'TR-', upi_id: 'ravi@okhdfc', trade: 'transport', language: 'en', bill_language: 'en',
-  next_bill_no: 3, last_backup_at: null, app_lock: 0,
+  next_bill_no: 3, last_backup_at: null, app_lock: 0, bill_theme: 'classic', bill_accent: 'blue',
 };
 const bill = (extra: Partial<Bill>): Bill => ({
   id: 1, bill_no: 'TR-0001', customer_name: 'Ramesh', customer_phone: '9876543210', date: '2026-10-01',
