@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "bill-maker",
-    "slug": "bill-maker",
+    "name": "Dhanzo",
+    "slug": "dhanzo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "billmaker",
+    "scheme": "dhanzo",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": {
@@ -13,7 +13,7 @@
         "dark": "./assets/images/icon-ios-dark.png",
         "tinted": "./assets/images/icon-ios-tinted.png"
       },
-      "bundleIdentifier": "com.atulyadav.billmaker"
+      "bundleIdentifier": "app.dhanzo"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.atulyadav.billmaker"
+      "package": "app.dhanzo",
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "output": "static",

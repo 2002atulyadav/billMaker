@@ -14,7 +14,8 @@ export type Cell = string | number | null;
 export type Row = Record<string, Cell>;
 
 export type Backup = {
-  app: 'bill-maker';
+  /** 'dhanzo'; files from before the rename say 'bill-maker' and are still accepted */
+  app: 'dhanzo' | 'bill-maker';
   /** version of this file layout */
   format: 1;
   /** PRAGMA user_version of the database it came from */
@@ -25,13 +26,13 @@ export type Backup = {
 };
 
 export function makeBackup(tables: Record<BackupTable, Row[]>, schemaVersion: number, now = new Date()): Backup {
-  return { app: 'bill-maker', format: 1, schema_version: schemaVersion, created_at: now.toISOString(), tables };
+  return { app: 'dhanzo', format: 1, schema_version: schemaVersion, created_at: now.toISOString(), tables };
 }
 
-/** "BillMaker-backup-2026-10-16.json" */
+/** "Dhanzo-backup-2026-10-16.json" */
 export function backupFileName(now = new Date()): string {
   const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return `BillMaker-backup-${d}.json`;
+  return `Dhanzo-backup-${d}.json`;
 }
 
 const isCell = (v: unknown): v is Cell => v === null || typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v));
@@ -50,7 +51,7 @@ export function parseBackup(text: string, currentSchemaVersion: number): Backup 
     throw new AppError('backup.errInvalid');
   }
   const b = data as Partial<Backup> | null;
-  if (!b || typeof b !== 'object' || b.app !== 'bill-maker' || typeof b.tables !== 'object' || b.tables === null) {
+  if (!b || typeof b !== 'object' || (b.app !== 'dhanzo' && b.app !== 'bill-maker') || typeof b.tables !== 'object' || b.tables === null) {
     throw new AppError('backup.errInvalid');
   }
   if (b.format !== 1 || typeof b.schema_version !== 'number' || b.schema_version > currentSchemaVersion) {
@@ -66,7 +67,7 @@ export function parseBackup(text: string, currentSchemaVersion: number): Backup 
   const profile = tables.profile;
   if (profile.length !== 1 || typeof profile[0].business_name !== 'string') throw new AppError('backup.errInvalid');
   return {
-    app: 'bill-maker',
+    app: 'dhanzo',
     format: 1,
     schema_version: b.schema_version,
     created_at: typeof b.created_at === 'string' ? b.created_at : '',

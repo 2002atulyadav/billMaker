@@ -1,4 +1,4 @@
-# Bill Maker
+# Dhanzo — Bill bhejo, paisa pao
 
 Simple offline billing app for shopkeepers, taxi drivers and freelancers: save your items and
 rates, create a bill, and share it as a PDF over WhatsApp, email, or any other app.
