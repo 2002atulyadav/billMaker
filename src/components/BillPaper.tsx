@@ -34,12 +34,16 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
             {profile.address ? <P muted>{profile.address}</P> : null}
           </View>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
+        {/* Capped so a long bilingual stamp ("PAID / भुगतान हुआ") can't squeeze the business name. */}
+        <View style={{ alignItems: 'flex-end', maxWidth: '45%' }}>
           <P style={styles.billNo}>{bill.bill_no}</P>
           <P muted>{formatDate(bill.date, tr.lang)}</P>
           {isPaid ? (
             <View style={styles.stamp}>
-              <Text maxFontSizeMultiplier={PAPER_FONT_SCALE} style={styles.stampText}>{tr.t('pdf.paid')}</Text>
+              <Text maxFontSizeMultiplier={PAPER_FONT_SCALE} style={styles.stampText}>
+                {/* Bilingual "PAID / भुगतान हुआ" stacks into two short lines so the stamp stays compact */}
+                {tr.t('pdf.paid').split(' / ').join('\n')}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -180,7 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     transform: [{ rotate: '-6deg' }],
   },
-  stampText: { color: PAPER.paid, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
+  stampText: { textAlign: 'center', color: PAPER.paid, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
   line: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -45,7 +45,7 @@ export const BASE_CSS = `
   .notes { margin-top: 24px; padding: 12px; background: #F7F8FA; border-radius: 6px; }
   .pay { display: flex; gap: 16px; align-items: center; margin-top: 24px; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; page-break-inside: avoid; }
   .pay .strong { font-size: 18px; }
-  .stamp { display: inline-block; margin-top: 8px; padding: 4px 12px; border: 2px solid #1A7F37; color: #1A7F37; border-radius: 6px; font-weight: 700; letter-spacing: 2px; transform: rotate(-6deg); }
+  .stamp { display: inline-block; text-align: center; margin-top: 8px; padding: 4px 12px; border: 2px solid #1A7F37; color: #1A7F37; border-radius: 6px; font-weight: 700; letter-spacing: 2px; transform: rotate(-6deg); }
   .thanks { text-align: center; margin-top: 40px; color: #60646C; }
 `;
 
@@ -139,7 +139,7 @@ ${BASE_CSS}</style></head>
       <h1>${esc(tr.t('pdf.bill'))}</h1>
       <div class="strong">${esc(bill.bill_no)}</div>
       <div class="muted">${date(bill.date)}</div>
-      ${isPaid ? `<div class="stamp">${esc(tr.t('pdf.paid'))}</div>` : ''}`)}
+      ${isPaid ? `<div class="stamp">${esc(tr.t('pdf.paid')).split(' / ').join('<br>')}</div>` : ''}`)}
 
   <div class="meta"><div>${customer}</div>${period}</div>
 

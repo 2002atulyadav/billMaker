@@ -39,6 +39,10 @@ export default function NewBill() {
   const profile = useProfile();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const nextKey = useRef(1);
+  const scrollRef = useRef<ScrollView>(null);
+  // Where the items card and each line sit inside the scroll content, to scroll to a line with an error.
+  const itemsY = useRef(0);
+  const lineY = useRef<Record<number, number>>({});
 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -149,6 +153,12 @@ export default function NewBill() {
       if (e.description || e.qty || e.price) errs[l.key] = e;
     }
     setLineErrors(errs);
+    // The error message is at the bottom, so bring the first bad line into view.
+    const firstBad = lines.find((l) => errs[l.key]);
+    if (firstBad) {
+      const y = itemsY.current + (lineY.current[firstBad.key] ?? 0) - Spacing.three;
+      scrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true });
+    }
 
     let msg: string | null = null;
     if (lines.length === 0) msg = t('newBill.errNoItems');
@@ -185,7 +195,7 @@ export default function NewBill() {
 
   return (
     <>
-      <Screen>
+      <Screen ref={scrollRef}>
         <Card>
           <SectionTitle>{t('newBill.customer')}</SectionTitle>
           <Field placeholder={t('newBill.customerName')} value={customerName} onChangeText={setCustomerName} />
@@ -218,13 +228,16 @@ export default function NewBill() {
           <DateField label={t('newBill.date')} value={date} onChange={setDate} />
         </Card>
 
-        <Card>
+        <Card onLayout={(e) => (itemsY.current = e.nativeEvent.layout.y)}>
           <SectionTitle>{t('newBill.items')}</SectionTitle>
           {lines.map((l, i) => {
             const e = lineErrors[l.key] ?? {};
             const amount = lineTotal(parseQty(l.qty) ?? 0, parseAmount(l.price) ?? 0);
             return (
-              <View key={l.key} style={[styles.line, { borderColor: c.border }]}>
+              <View
+                key={l.key}
+                style={[styles.line, { borderColor: c.border }]}
+                onLayout={(e) => (lineY.current[l.key] = e.nativeEvent.layout.y)}>
                 <Row>
                   <T muted style={{ minWidth: 20 }}>{i + 1}.</T>
                   <View style={{ flex: 1 }}>

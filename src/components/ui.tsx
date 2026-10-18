@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,7 @@ import {
   type StyleProp,
   type TextInputProps,
   type TextProps,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,9 +53,15 @@ export function T({ style, muted, ...props }: TextProps & { muted?: boolean }) {
  * A screen's scrolling body. On iOS the content insets follow the keyboard (whatever the header and
  * home-indicator heights are on that phone), so the focused field is never hidden.
  */
-export function Screen({ contentContainerStyle, children, ...props }: ScrollViewProps) {
+export function Screen({
+  contentContainerStyle,
+  children,
+  ref,
+  ...props
+}: ScrollViewProps & { ref?: Ref<ScrollView> }) {
   return (
     <ScrollView
+      ref={ref}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       automaticallyAdjustKeyboardInsets
@@ -65,10 +72,20 @@ export function Screen({ contentContainerStyle, children, ...props }: ScrollView
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Card({
+  children,
+  style,
+  onLayout,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  onLayout?: ViewProps['onLayout'];
+}) {
   const c = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }, style]}>{children}</View>
+    <View onLayout={onLayout} style={[styles.card, { backgroundColor: c.card, borderColor: c.border }, style]}>
+      {children}
+    </View>
   );
 }
 
