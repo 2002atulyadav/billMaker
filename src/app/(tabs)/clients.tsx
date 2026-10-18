@@ -53,6 +53,11 @@ export default function Clients() {
             <View style={{ flex: 1, gap: 2 }}>
               <T style={{ fontWeight: '600' }}>{item.name}</T>
               {item.phone ? <T muted style={{ fontSize: 13 }}>{item.phone}</T> : null}
+              {item.due_minor > 0 ? (
+                <T style={{ fontSize: 13, fontWeight: '600', color: c.warning }}>
+                  {t('clients.due', { amount: formatMoney(item.due_minor, currency) })}
+                </T>
+              ) : null}
             </View>
             {item.unbilled_count ? (
               <View style={{ alignItems: 'flex-end' }}>

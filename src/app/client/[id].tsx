@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Linking from 'expo-linking';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
@@ -23,12 +24,14 @@ import {
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/i18n/I18nProvider';
+import { balanceOf } from '@/lib/due';
 import { errorText } from '@/lib/errors';
 import { detailsText, entryTotal, groupByMonth, sumEntries } from '@/lib/entries';
 import { formatDate, formatMoney, formatQty, isoToDate, todayISO } from '@/lib/money';
 import { shareStatementPdf } from '@/lib/pdf';
 import { formatPeriod, monthPeriod, type Period } from '@/lib/period';
 import { presetFor, unitsFor } from '@/lib/presets';
+import { clientReminderMessage, waPhone, whatsappUrl } from '@/lib/whatsapp';
 import type { Bill, Client, Entry, Item } from '@/types';
 
 const ALL_TIME: Period = { start: '0000-01-01', end: '9999-12-31' };
@@ -91,7 +94,8 @@ export default function ClientDetail() {
   const unbilled = entries.filter((e) => e.bill_id === null);
   const unbilledSum = sumEntries(unbilled);
   const groups = groupByMonth(showBilled ? entries : unbilled);
-  const outstanding = bills.filter((b) => b.status === 'unpaid').reduce((s, b) => s + b.total_minor, 0);
+  const outstanding = bills.filter((b) => b.status !== 'paid').reduce((s, b) => s + balanceOf(b), 0);
+  const phone = waPhone(client.phone);
 
   function openEntry(e: Entry | null) {
     setEditingEntry(e);
@@ -136,10 +140,19 @@ export default function ClientDetail() {
     );
   }
 
-  async function confirmPeriod(period: Period) {
+  async function remind() {
+    if (!phone || !profile || !client) return;
+    try {
+      await Linking.openURL(whatsappUrl(phone, clientReminderMessage(client, bills, profile)));
+    } catch {
+      Alert.alert(t('bill.whatsappUnavailable'), t('bill.whatsappUnavailableHint'));
+    }
+  }
+
+  async function confirmPeriod(period: Period, dueDate: string | null) {
     try {
       if (periodMode === 'bill') {
-        const billId = await createPeriodBill(db, clientId, period, todayISO());
+        const billId = await createPeriodBill(db, clientId, period, todayISO(), dueDate);
         setPeriodMode(null);
         router.push({ pathname: '/bill/[id]', params: { id: String(billId) } });
       } else {
@@ -188,6 +201,14 @@ export default function ClientDetail() {
               <View style={{ alignItems: 'flex-end' }}>
                 <SectionTitle>{t('client.billsUnpaid')}</SectionTitle>
                 <T style={{ fontSize: 18, fontWeight: '700', color: c.warning }}>{money(outstanding)}</T>
+                {phone ? (
+                  <Pressable onPress={remind} hitSlop={8} accessibilityRole="button">
+                    <Row style={{ gap: 4 }}>
+                      <Ionicons name="logo-whatsapp" size={14} color={c.primary} />
+                      <T style={{ color: c.primary, fontWeight: '600', fontSize: 13 }}>{t('client.remind')}</T>
+                    </Row>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
           </Row>

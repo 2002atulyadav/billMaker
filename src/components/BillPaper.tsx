@@ -20,7 +20,10 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
   // Follows the bill language (not the app language): this view is what gets shared as an image.
   const tr = makeBillTranslator(profile.bill_language);
   const isPaid = bill.status === 'paid';
-  const showPay = !isPaid && !!profile.upi_id && bill.total_minor > 0;
+  // Mirrors billHtml.ts: the QR asks only for what's still due.
+  const balance = Math.max(0, bill.total_minor - bill.paid_minor);
+  const partPaid = !isPaid && bill.paid_minor > 0;
+  const showPay = !isPaid && !!profile.upi_id && balance > 0;
 
   return (
     // collapsable={false} keeps this View in the native hierarchy on Android so captureRef can find it.
@@ -38,6 +41,11 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
         <View style={{ alignItems: 'flex-end', maxWidth: '45%' }}>
           <P style={styles.billNo}>{bill.bill_no}</P>
           <P muted>{formatDate(bill.date, tr.lang)}</P>
+          {!isPaid && bill.due_date ? (
+            <P muted style={{ fontSize: 13 }}>
+              {tr.t('pdf.dueDate')}: {formatDate(bill.due_date, tr.lang)}
+            </P>
+          ) : null}
           {isPaid ? (
             <View style={styles.stamp}>
               <Text maxFontSizeMultiplier={PAPER_FONT_SCALE} style={styles.stampText}>
@@ -103,6 +111,18 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
           <P style={{ fontSize: 17, fontWeight: '700' }}>{tr.t('pdf.total')}</P>
           <P style={{ fontSize: 22, fontWeight: '700' }}>{money(bill.total_minor)}</P>
         </View>
+        {partPaid ? (
+          <>
+            <View style={styles.totalRow}>
+              <P muted>{tr.t('pdf.paidAmount')}</P>
+              <P>-{money(bill.paid_minor)}</P>
+            </View>
+            <View style={[styles.totalRow, styles.grand]}>
+              <P style={{ fontSize: 17, fontWeight: '700' }}>{tr.t('pdf.balanceDue')}</P>
+              <P style={{ fontSize: 22, fontWeight: '700', color: PAPER.due }}>{money(balance)}</P>
+            </View>
+          </>
+        ) : null}
       </View>
 
       {bill.notes ? (
@@ -118,14 +138,14 @@ export function BillPaper({ bill, profile, ref }: { bill: BillWithLines; profile
             text={upiLink({
               upiId: profile.upi_id,
               payeeName: profile.business_name,
-              amountMinor: bill.total_minor,
+              amountMinor: balance,
               note: bill.bill_no,
             })}
             size={112}
           />
           <View style={{ flex: 1, gap: 2 }}>
             <P muted style={styles.label}>{tr.t('pdf.scanToPay')}</P>
-            <P style={{ fontSize: 18, fontWeight: '700' }}>{money(bill.total_minor)}</P>
+            <P style={{ fontSize: 18, fontWeight: '700' }}>{money(balance)}</P>
             <P muted style={{ fontSize: 13 }}>
               {tr.t('pdf.upiId')}: {profile.upi_id}
             </P>
@@ -148,7 +168,7 @@ function UpiQr({ text, size }: { text: string; size: number }) {
 }
 
 const PAPER_FONT_SCALE = 1.2;
-const PAPER = { text: '#111418', muted: '#60646C', border: '#E5E7EB', accent: '#1F6FEB', paid: '#1A7F37' };
+const PAPER = { text: '#111418', muted: '#60646C', border: '#E5E7EB', accent: '#1F6FEB', paid: '#1A7F37', due: '#9A6700' };
 
 /** Text with fixed paper colors (ignores dark mode). */
 function P({ style, muted, ...props }: TextProps & { muted?: boolean }) {

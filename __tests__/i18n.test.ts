@@ -87,6 +87,7 @@ const profile: Profile = {
   bill_language: 'hi',
   next_bill_no: 2,
   last_backup_at: null,
+  app_lock: 0,
 };
 
 const bill: BillWithLines = {
@@ -100,6 +101,9 @@ const bill: BillWithLines = {
   subtotal_minor: 1000000,
   total_minor: 1000000,
   status: 'unpaid',
+  paid_minor: 0,
+  due_date: null,
+  last_reminded_at: null,
   paid_at: null,
   client_id: 1,
   customer_address: '',
@@ -107,6 +111,7 @@ const bill: BillWithLines = {
   period_end: '2026-10-31',
   detail_fields: [{ key: 'vehicle', label: 'Vehicle no.' }],
   created_at: '',
+  payments: [],
   lines: [
     {
       description: 'ट्रिप चार्ज',

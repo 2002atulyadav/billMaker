@@ -12,6 +12,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/i18n/I18nProvider';
 import { daysSinceBackup, needsBackupReminder } from '@/lib/backup';
+import { dueState } from '@/lib/due';
 import { formatDate, formatMoney } from '@/lib/money';
 import type { Bill } from '@/types';
 
@@ -23,7 +24,7 @@ export default function Bills() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<BillFilter>('all');
   const [bills, setBills] = useState<Bill[] | null>(null);
-  const [unpaid, setUnpaid] = useState({ count: 0, total_minor: 0 });
+  const [unpaid, setUnpaid] = useState({ count: 0, total_minor: 0, overdue_count: 0 });
   const [billCount, setBillCount] = useState(0);
 
   const reload = useCallback(() => {
@@ -57,6 +58,12 @@ export default function Bills() {
                 style={[styles.dues, { backgroundColor: c.card, borderColor: c.warning }]}>
                 <T muted style={{ fontSize: 13 }}>
                   {t('bills.toCollect')} · {tn('common.bills', unpaid.count)}
+                  {unpaid.overdue_count > 0 ? (
+                    <T style={{ color: c.danger, fontSize: 13, fontWeight: '600' }}>
+                      {' · '}
+                      {tn('bills.overdueCount', unpaid.overdue_count)}
+                    </T>
+                  ) : null}
                 </T>
                 <T style={{ fontSize: 22, fontWeight: '700', color: c.warning }}>
                   {formatMoney(unpaid.total_minor, currency)}
@@ -84,7 +91,7 @@ export default function Bills() {
               onChangeText={setSearch}
               clearButtonMode="while-editing"
             />
-            <Row>
+            <Row style={{ flexWrap: 'wrap' }}>
               {FILTERS.map((f) => (
                 <Chip key={f.value} label={t(f.label)} selected={filter === f.value} onPress={() => setFilter(f.value)} />
               ))}
@@ -110,6 +117,7 @@ export default function Bills() {
               <T muted style={{ fontSize: 13 }}>
                 {item.bill_no} · {formatDate(item.date, lang)}
               </T>
+              <DueLine bill={item} />
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
               <T style={{ fontWeight: '700' }}>{formatMoney(item.total_minor, currency)}</T>
@@ -129,10 +137,22 @@ export default function Bills() {
   );
 }
 
+/** "Overdue by 3 days" (red) or "Due 25 Oct" under a bill that isn't fully paid. */
+function DueLine({ bill }: { bill: Bill }) {
+  const c = useTheme();
+  const { t, tn, lang } = useT();
+  const due = dueState(bill);
+  if (due.kind === 'none') return null;
+  const text =
+    due.kind === 'overdue' ? tn('due.overdue', due.days) : due.kind === 'today' ? t('due.today') : t('due.on', { date: formatDate(due.date, lang) });
+  return <T style={{ fontSize: 12, fontWeight: '600', color: due.kind === 'due' ? c.textSecondary : c.danger }}>{text}</T>;
+}
+
 const FILTERS = [
   { value: 'all', label: 'bills.filterAll' },
   { value: 'unpaid', label: 'bills.filterUnpaid' },
   { value: 'paid', label: 'bills.filterPaid' },
+  { value: 'overdue', label: 'bills.filterOverdue' },
 ] as const satisfies readonly { value: BillFilter; label: TKey }[];
 
 const styles = StyleSheet.create({

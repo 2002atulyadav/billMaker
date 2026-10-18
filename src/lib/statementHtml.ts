@@ -6,12 +6,13 @@ import type { Bill, Client, Profile } from '@/types';
 
 export type StatementTotals = { billed_minor: number; paid_minor: number; outstanding_minor: number };
 
-export function statementTotals(bills: Pick<Bill, 'total_minor' | 'status'>[]): StatementTotals {
+/** Part payments count: "paid" is money received, "outstanding" what's still due. */
+export function statementTotals(bills: Pick<Bill, 'total_minor' | 'paid_minor'>[]): StatementTotals {
   let billed = 0;
   let paid = 0;
   for (const b of bills) {
     billed += b.total_minor;
-    if (b.status === 'paid') paid += b.total_minor;
+    paid += Math.min(b.paid_minor, b.total_minor);
   }
   return { billed_minor: billed, paid_minor: paid, outstanding_minor: billed - paid };
 }
@@ -47,7 +48,7 @@ export function statementToHtml(opts: {
         <td>${b.period_start && b.period_end ? periodLabel({ start: b.period_start, end: b.period_end }) : ''}</td>
         <td class="r">${money(b.total_minor)}</td>
         <td class="r ${b.status === 'paid' ? 'ok' : 'due'}">${esc(
-          tr.t(b.status === 'paid' ? 'pdf.statusPaid' : 'pdf.statusUnpaid'),
+          tr.t(b.status === 'paid' ? 'pdf.statusPaid' : b.status === 'partial' ? 'pdf.statusPartial' : 'pdf.statusUnpaid'),
         )}</td>
       </tr>`,
         )

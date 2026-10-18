@@ -195,11 +195,12 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
 export function StatusBadge({ status }: { status: BillStatus }) {
   const c = useTheme();
   const { t } = useT();
-  const color = status === 'paid' ? c.success : c.warning;
+  const color = status === 'paid' ? c.success : status === 'partial' ? c.primary : c.warning;
+  const label = status === 'paid' ? 'common.paid' : status === 'partial' ? 'common.partial' : 'common.unpaid';
   return (
     <View style={[styles.badge, { borderColor: color }]}>
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={{ color, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
-        {t(status === 'paid' ? 'common.paid' : 'common.unpaid')}
+        {t(label)}
       </Text>
     </View>
   );

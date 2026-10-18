@@ -4,6 +4,7 @@ import { DateField } from '@/components/DateField';
 import { Sheet } from '@/components/Sheet';
 import { Button, Card, Chip, Row, T } from '@/components/ui';
 import { useT } from '@/i18n/I18nProvider';
+import { addDays, DUE_PRESETS } from '@/lib/due';
 import { billableEntries, sumEntries } from '@/lib/entries';
 import { formatDate, formatMoney, todayISO } from '@/lib/money';
 import { PERIOD_PRESETS, formatPeriod, presetPeriod, type Period, type PeriodPreset } from '@/lib/period';
@@ -17,7 +18,8 @@ type Props = {
   entries: Entry[];
   currency: string;
   onClose: () => void;
-  onConfirm: (period: Period) => Promise<void>;
+  /** dueDate is only chosen for bills (null for statements or no due date) */
+  onConfirm: (period: Period, dueDate: string | null) => Promise<void>;
 };
 
 export function PeriodModal(props: Props) {
@@ -36,6 +38,7 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
   const [choice, setChoice] = useState<PeriodPreset | 'custom'>(mode === 'bill' ? 'this-month' : 'this-fy');
   const [custom, setCustom] = useState<Period>(() => presetPeriod('this-month'));
   const [busy, setBusy] = useState(false);
+  const [dueDays, setDueDays] = useState<(typeof DUE_PRESETS)[number] | null>(null);
   const { t, tn, lang } = useT();
 
   const period = choice === 'custom' ? custom : presetPeriod(choice);
@@ -45,7 +48,7 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
   async function confirm() {
     setBusy(true);
     try {
-      await onConfirm(period);
+      await onConfirm(period, mode === 'bill' && dueDays !== null ? addDays(todayISO(), dueDays) : null);
     } finally {
       setBusy(false);
     }
@@ -64,6 +67,23 @@ function PeriodForm({ mode, entries, currency, onClose, onConfirm }: Props) {
         <>
           <DateField label={t('period.from')} value={custom.start} onChange={(start) => setCustom((p) => ({ ...p, start }))} />
           <DateField label={t('period.to')} value={custom.end} onChange={(end) => setCustom((p) => ({ ...p, end }))} />
+        </>
+      ) : null}
+
+      {mode === 'bill' ? (
+        <>
+          <T muted style={{ fontSize: 13 }}>{t('due.title')}</T>
+          <Row style={{ flexWrap: 'wrap' }}>
+            <Chip label={t('due.none')} selected={dueDays === null} onPress={() => setDueDays(null)} />
+            {DUE_PRESETS.map((d) => (
+              <Chip
+                key={d}
+                label={d === 0 ? t('due.onReceipt') : t('due.days', { count: d })}
+                selected={dueDays === d}
+                onPress={() => setDueDays(d)}
+              />
+            ))}
+          </Row>
         </>
       ) : null}
 

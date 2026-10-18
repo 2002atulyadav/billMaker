@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Suspense } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AppLockProvider } from '@/components/AppLock';
 import { DATABASE_NAME, migrate } from '@/db/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -29,7 +30,9 @@ export default function RootLayout() {
         }>
         <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrate} useSuspense>
           <I18nProvider>
-            <AppStack />
+            <AppLockProvider>
+              <AppStack />
+            </AppLockProvider>
           </I18nProvider>
         </SQLiteProvider>
       </Suspense>

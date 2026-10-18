@@ -6,7 +6,7 @@ import { Alert } from 'react-native';
 import { DateField } from '@/components/DateField';
 import { Sheet } from '@/components/Sheet';
 import { Button, Card, Chip, Row, T } from '@/components/ui';
-import { listBillsForExport } from '@/db/repo';
+import { listBillsForExport, type ExportBill } from '@/db/repo';
 import { useTheme } from '@/hooks/use-theme';
 import { makeBillTranslator } from '@/i18n';
 import { useT } from '@/i18n/I18nProvider';
@@ -15,7 +15,7 @@ import { billLinesCsv, billsCsv, csvFileName } from '@/lib/csv';
 import { errorText } from '@/lib/errors';
 import { formatMoney } from '@/lib/money';
 import { PERIOD_PRESETS, formatPeriod, presetPeriod, type Period, type PeriodPreset } from '@/lib/period';
-import type { BillWithLines, Profile } from '@/types';
+import type { Profile } from '@/types';
 
 type Choice = PeriodPreset | 'all' | 'custom';
 
@@ -35,7 +35,7 @@ function ExportForm({ profile, onClose }: { profile: Profile; onClose: () => voi
   const { t, tn, lang } = useT();
   const [choice, setChoice] = useState<Choice>('this-fy');
   const [custom, setCustom] = useState<Period>(() => presetPeriod('this-month'));
-  const [bills, setBills] = useState<BillWithLines[] | null>(null);
+  const [bills, setBills] = useState<ExportBill[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   const period: Period | null = choice === 'all' ? null : choice === 'custom' ? custom : presetPeriod(choice);

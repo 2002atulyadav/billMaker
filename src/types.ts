@@ -21,10 +21,12 @@ export type Profile = {
   next_bill_no: number;
   /** datetime('now') of the last backup made or restored; null if never */
   last_backup_at: string | null;
+  /** 1 = ask for fingerprint / Face ID / passcode when the app opens */
+  app_lock: number;
 };
 
 /** What the profile form edits. Trade, languages, bill numbering and the backup date have their own setters. */
-export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade' | 'language' | 'bill_language' | 'last_backup_at'>;
+export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade' | 'language' | 'bill_language' | 'last_backup_at' | 'app_lock'>;
 
 export const LANGS = ['en', 'hi'] as const;
 export type Lang = (typeof LANGS)[number];
@@ -69,8 +71,14 @@ export type Bill = {
   subtotal_minor: number;
   total_minor: number;
   status: BillStatus;
-  /** datetime('now') when marked paid, else null */
+  /** sum of recorded payments (cache kept in step with the payments table) */
+  paid_minor: number;
+  /** datetime('now') when it became fully paid, else null */
   paid_at: string | null;
+  /** YYYY-MM-DD the customer should pay by; null = no due date */
+  due_date: string | null;
+  /** datetime('now') of the last WhatsApp reminder */
+  last_reminded_at: string | null;
   /** set when the bill was made for a saved client */
   client_id: number | null;
   customer_address: string;
@@ -82,9 +90,25 @@ export type Bill = {
   created_at: string;
 };
 
-export type BillStatus = 'unpaid' | 'paid';
+export type BillStatus = 'unpaid' | 'partial' | 'paid';
 
-export type BillWithLines = Bill & { lines: BillLine[] };
+export const PAYMENT_METHODS = ['upi', 'cash', 'bank', 'other'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Money received against a bill. A bill can be paid in parts. */
+export type Payment = {
+  id: number;
+  bill_id: number;
+  amount_minor: number;
+  /** YYYY-MM-DD */
+  date: string;
+  method: PaymentMethod;
+  /** UTR / cheque no. / any proof the owner wants to keep */
+  reference: string;
+  note: string;
+};
+
+export type BillWithLines = Bill & { lines: BillLine[]; payments: Payment[] };
 
 export type BillDraft = {
   customer_name: string;
@@ -94,6 +118,7 @@ export type BillDraft = {
   date: string;
   discount_minor: number;
   notes: string;
+  due_date?: string | null;
   period_start?: string | null;
   period_end?: string | null;
   detail_fields?: DetailField[];

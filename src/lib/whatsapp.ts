@@ -1,7 +1,8 @@
 import { makeTranslator } from '@/i18n';
+import { balanceOf } from '@/lib/due';
 import { formatDate, formatMoney } from '@/lib/money';
 import { formatPeriod } from '@/lib/period';
-import type { Bill, Profile } from '@/types';
+import type { Bill, Client, Profile } from '@/types';
 
 /**
  * Normalizes a typed phone number to the international digits wa.me expects.
@@ -24,7 +25,8 @@ export function waPhone(raw: string): string | null {
 export function billMessage(bill: Bill, profile: Profile): string {
   const lang = profile.bill_language === 'hi' ? 'hi' : 'en';
   const { t } = makeTranslator(lang);
-  const total = formatMoney(bill.total_minor, profile.currency);
+  // Once part-paid, the customer is told what's left, not the original total.
+  const total = formatMoney(bill.status === 'paid' ? bill.total_minor : balanceOf(bill), profile.currency);
   const vars = { billNo: bill.bill_no, business: profile.business_name, date: formatDate(bill.date, lang) };
   const lines = [
     bill.customer_name ? t('wa.hiName', { name: bill.customer_name }) : t('wa.hi'),
@@ -34,6 +36,41 @@ export function billMessage(bill: Bill, profile: Profile): string {
     bill.status === 'paid' ? t('wa.paid', { total }) : t('wa.due', { total }),
   ];
   if (bill.status !== 'paid' && profile.upi_id) lines.push(t('wa.upi', { upi: profile.upi_id }));
+  return lines.join('\n');
+}
+
+const chatLang = (profile: Profile) => (profile.bill_language === 'hi' ? 'hi' : 'en');
+
+/** Polite follow-up for one unpaid bill: what's pending, the due date, and how to pay. */
+export function reminderMessage(bill: Bill, profile: Profile): string {
+  const lang = chatLang(profile);
+  const { t } = makeTranslator(lang);
+  const lines = [
+    bill.customer_name ? t('wa.hiName', { name: bill.customer_name }) : t('wa.hi'),
+    t('wa.reminderIntro', { billNo: bill.bill_no, business: profile.business_name, date: formatDate(bill.date, lang) }),
+    t('wa.reminderPending', { amount: formatMoney(balanceOf(bill), profile.currency) }),
+  ];
+  if (bill.due_date) lines.push(t('wa.reminderDueDate', { date: formatDate(bill.due_date, lang) }));
+  if (profile.upi_id) lines.push(t('wa.upi', { upi: profile.upi_id }));
+  lines.push(t('wa.reminderThanks'));
+  return lines.join('\n');
+}
+
+/** One reminder covering all of a client's unpaid bills. */
+export function clientReminderMessage(client: Client, bills: Bill[], profile: Profile): string {
+  const lang = chatLang(profile);
+  const { t, tn } = makeTranslator(lang);
+  const due = bills.filter((b) => b.status !== 'paid');
+  const total = due.reduce((s, b) => s + balanceOf(b), 0);
+  const lines = [
+    t('wa.hiName', { name: client.name }),
+    tn('wa.reminderClient', due.length, { business: profile.business_name, amount: formatMoney(total, profile.currency) }),
+    ...due.map((b) =>
+      t('wa.reminderBillLine', { billNo: b.bill_no, date: formatDate(b.date, lang), amount: formatMoney(balanceOf(b), profile.currency) }),
+    ),
+  ];
+  if (profile.upi_id) lines.push(t('wa.upi', { upi: profile.upi_id }));
+  lines.push(t('wa.reminderThanks'));
   return lines.join('\n');
 }
 

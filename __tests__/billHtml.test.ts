@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/money';
 import { billToHtml } from '@/lib/billHtml';
 import type { BillWithLines, Profile } from '@/types';
 
@@ -15,6 +16,7 @@ const profile: Profile = {
   bill_language: 'en',
   next_bill_no: 2,
   last_backup_at: null,
+  app_lock: 0,
 };
 
 const bill: BillWithLines = {
@@ -28,6 +30,9 @@ const bill: BillWithLines = {
   subtotal_minor: 27600,
   total_minor: 27000,
   status: 'unpaid',
+  paid_minor: 0,
+  due_date: null,
+  last_reminded_at: null,
   paid_at: null,
   client_id: null,
   customer_address: '',
@@ -35,6 +40,7 @@ const bill: BillWithLines = {
   period_end: null,
   detail_fields: [],
   created_at: '2026-10-11 10:00:00',
+  payments: [],
   lines: [
     { description: 'Per km fare', qty: 12.4, unit: 'km', unit_price_minor: 1500, line_total_minor: 18600, entry_date: null, details: {} },
     { description: 'Waiting <1hr>', qty: 1, unit: 'hr', unit_price_minor: 9000, line_total_minor: 9000, entry_date: null, details: {} },
@@ -76,6 +82,21 @@ describe('billToHtml', () => {
     expect(withUpi).toContain('<svg');
     expect(withUpi).toContain('UPI ID: ravi@okhdfc');
     expect(html).not.toContain('Scan to pay');
+  });
+
+  it('shows paid and balance on part-paid bills, and the QR asks only for the balance', () => {
+    const paidSoFar = 10000;
+    const partial = billToHtml(
+      { ...bill, status: 'partial', paid_minor: paidSoFar, due_date: '2026-10-20' },
+      { ...profile, upi_id: 'ravi@okhdfc' },
+    );
+    const balance = formatMoney(bill.total_minor - paidSoFar, '₹');
+    expect(partial).toContain('Balance due');
+    expect(partial).toContain(`-${formatMoney(paidSoFar, '₹')}`);
+    expect(partial).toContain('Due date: 20 Oct 2026');
+    // balance appears in the totals and again in the Scan-to-pay block
+    expect(partial.split(balance).length - 1).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain('Balance due');
   });
 
   it('stamps paid bills and drops the pay block', () => {

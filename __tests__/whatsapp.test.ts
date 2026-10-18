@@ -30,6 +30,7 @@ const profile: Profile = {
   bill_language: 'en',
   next_bill_no: 2,
   last_backup_at: null,
+  app_lock: 0,
 };
 
 const bill: Bill = {
@@ -43,6 +44,9 @@ const bill: Bill = {
   subtotal_minor: 27000,
   total_minor: 27000,
   status: 'unpaid',
+  paid_minor: 0,
+  due_date: null,
+  last_reminded_at: null,
   paid_at: null,
   client_id: null,
   customer_address: '',

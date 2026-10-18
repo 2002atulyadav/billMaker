@@ -2,6 +2,8 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
+import { useAppLock } from '@/components/AppLock';
+import { AppLockCard } from '@/components/AppLockCard';
 import { BackupCard } from '@/components/BackupCard';
 import { BillNumberCard } from '@/components/BillNumberCard';
 import { BusinessTypeCard } from '@/components/BusinessTypeCard';
@@ -19,6 +21,7 @@ export default function Settings() {
   const [savedCount, setSavedCount] = useState(0);
   // Bumped after a restore so every form re-reads the restored profile.
   const [generation, setGeneration] = useState(0);
+  const lock = useAppLock();
   if (!profile) return null;
 
   return (
@@ -35,11 +38,13 @@ export default function Settings() {
         <LanguageCard billLanguage={profile.bill_language} />
         <BusinessTypeCard trade={profile.trade} />
         <BillNumberCard version={savedCount} />
+        <AppLockCard />
         <BackupCard
           profile={profile}
           onBackedUp={reload}
           onRestored={async () => {
             await reload();
+            lock.refresh();
             setGeneration((g) => g + 1);
           }}
         />

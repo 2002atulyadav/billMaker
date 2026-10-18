@@ -9,6 +9,7 @@ const tables = {
   bills: [{ id: 1, bill_no: 'TR-0001' }, { id: 2, bill_no: 'TR-0002' }],
   bill_items: [],
   entries: [],
+  payments: [],
 };
 
 const errKey = (fn: () => unknown) => {
@@ -27,11 +28,12 @@ describe('backup file', () => {
   });
 
   it('accepts an older backup and fills tables it did not have', () => {
-    const { clients: _c, entries: _e, ...old } = tables;
+    const { clients: _c, entries: _e, payments: _p, ...old } = tables;
     const b = { ...makeBackup(tables, 3), tables: old };
     const parsed = parseBackup(JSON.stringify(b), 6);
     expect(parsed.tables.clients).toEqual([]);
     expect(parsed.tables.entries).toEqual([]);
+    expect(parsed.tables.payments).toEqual([]);
     expect(parsed.tables.bills).toHaveLength(2);
   });
 
