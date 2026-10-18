@@ -474,6 +474,31 @@ export const en = {
   'lock.unlock': 'Unlock',
   'lock.prompt': 'Unlock to see your bills',
   'lock.failed': 'Couldn’t confirm it’s you. Try again.',
+
+  // bill themes
+  'billStyle.title': 'Bill style',
+  'billStyle.hint': 'How your bills, statements and shared images look. You can change it anytime in Settings.',
+  'billStyle.accent': 'Colour',
+  'billStyle.preview': 'See full preview',
+  'billStyle.previewTitle': 'Sample bill',
+  'billStyle.sampleBusiness': 'Your Business Name',
+  'billTheme.classic': 'Classic',
+  'billTheme.classic.hint': 'Clean and simple',
+  'billTheme.bold': 'Bold header',
+  'billTheme.bold.hint': 'Coloured top, stands out',
+  'billTheme.bahi': 'Traditional',
+  'billTheme.bahi.hint': 'Bill-book style, amount in words',
+  'billTheme.receipt': 'Receipt',
+  'billTheme.receipt.hint': 'Black & white, compact',
+  'accent.blue': 'Blue',
+  'accent.green': 'Green',
+  'accent.maroon': 'Maroon',
+  'accent.saffron': 'Saffron',
+  'accent.purple': 'Purple',
+  'accent.black': 'Black',
+  'pdf.amountInWords': 'Amount in words',
+  'pdf.signature': 'Authorised signature',
+  'pdf.ms': 'M/s',
 } as const;
 
 export type TKey = keyof typeof en;

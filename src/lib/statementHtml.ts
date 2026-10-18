@@ -1,5 +1,6 @@
 import { makeBillTranslator, type Translator } from '@/i18n';
-import { BASE_CSS, businessHead, esc, nl2br, payBlock } from '@/lib/billHtml';
+import { businessHead, esc, nl2br, payBlock, themeCss } from '@/lib/billHtml';
+import { profileTheme } from '@/lib/billTheme';
 import { formatDate, formatMoney, todayISO } from '@/lib/money';
 import { formatPeriod, type Period } from '@/lib/period';
 import type { Bill, Client, Profile } from '@/types';
@@ -59,11 +60,11 @@ export function statementToHtml(opts: {
 <html lang="${tr.lang}"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
-${BASE_CSS}
+${themeCss(profileTheme(profile))}
   .ok { color: #1A7F37; font-weight: 600; }
   .due { color: #9A6700; font-weight: 600; }
 </style></head>
-<body>
+<body><div class="page">
   ${businessHead(profile, `
       <h1>${esc(tr.t('pdf.statement'))}</h1>
       <div class="strong">${periodLabel(period)}</div>
@@ -102,5 +103,5 @@ ${BASE_CSS}
   ${payBlock(profile, t.outstanding_minor, `${client.name} statement`.slice(0, 50), tr)}
 
   <div class="thanks">${esc(tr.t('pdf.thanks'))}</div>
-</body></html>`;
+</div></body></html>`;
 }

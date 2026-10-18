@@ -16,6 +16,8 @@ const profile: Profile = {
   next_bill_no: 4,
   last_backup_at: null,
   app_lock: 0,
+  bill_theme: 'classic',
+  bill_accent: 'blue',
 };
 const client: Client = { id: 1, name: 'ABC <Logistics>', phone: '9876543210', address: 'MIDC\nPune' };
 

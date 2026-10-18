@@ -23,10 +23,15 @@ export type Profile = {
   last_backup_at: string | null;
   /** 1 = ask for fingerprint / Face ID / passcode when the app opens */
   app_lock: number;
+  /** bill design: 'classic' | 'bold' | 'bahi' | 'receipt' (see src/lib/billTheme.ts) */
+  bill_theme: string;
+  /** accent colour key from ACCENTS, e.g. 'blue' */
+  bill_accent: string;
 };
 
 /** What the profile form edits. Trade, languages, bill numbering and the backup date have their own setters. */
-export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade' | 'language' | 'bill_language' | 'last_backup_at' | 'app_lock'>;
+export type ProfileInput = Omit<Profile, 'next_bill_no' | 'trade' | 'language' | 'bill_language' | 'last_backup_at' | 'app_lock' | 'bill_theme' | 'bill_accent'
+>;
 
 export const LANGS = ['en', 'hi'] as const;
 export type Lang = (typeof LANGS)[number];

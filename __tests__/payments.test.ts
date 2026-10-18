@@ -6,14 +6,17 @@ import {
   createBill,
   deletePayment,
   getBill,
+  getProfile,
   getUnpaidSummary,
   listBills,
   listClients,
   markBillPaid,
   markBillUnpaid,
+  readAllTables,
   recordPayment,
   restoreBackup,
   saveClient,
+  setBillTheme,
 } from '@/db/repo';
 import { SCHEMA_VERSION, migrate } from '@/db/schema';
 import { makeBackup, parseBackup } from '@/lib/backup';
@@ -136,7 +139,8 @@ describe('upgrade to schema 7', () => {
   it('gives bills already marked paid a full payment', async () => {
     const db = openDb();
     await migrate(db, 6);
-    await completeOnboarding(db, PROFILE, 'transport', 'en');
+    // the profile as an old version of the app wrote it
+    await db.runAsync(`INSERT INTO profile (id, business_name, bill_prefix) VALUES (1, 'Sharma Transport', 'TR-')`);
     // what the old app did: insert a bill, then flip its status
     await db.runAsync(
       `INSERT INTO bills (bill_no, date, subtotal_minor, total_minor, status, paid_at) VALUES ('TR-0001', '2026-09-01', 5000, 5000, 'paid', '2026-09-03 10:00:00')`,
@@ -163,5 +167,25 @@ describe('upgrade to schema 7', () => {
     expect(await getBill(db, 1)).toMatchObject({ status: 'paid', paid_minor: 900 });
     expect((await getBill(db, 1))?.payments).toHaveLength(1);
     expect(await getBill(db, 2)).toMatchObject({ status: 'unpaid', paid_minor: 0 });
+  });
+});
+
+describe('bill theme (schema 8)', () => {
+  it('defaults to Classic blue, saves a choice and keeps it through backup and restore', async () => {
+    const db = await setup();
+    expect(await getProfile(db)).toMatchObject({ bill_theme: 'classic', bill_accent: 'blue' });
+    await setBillTheme(db, 'bahi', 'maroon');
+    expect(await getProfile(db)).toMatchObject({ bill_theme: 'bahi', bill_accent: 'maroon' });
+    const backup = makeBackup(await readAllTables(db), SCHEMA_VERSION);
+    await setBillTheme(db, 'receipt', 'black');
+    await restoreBackup(db, parseBackup(JSON.stringify(backup), SCHEMA_VERSION));
+    expect(await getProfile(db)).toMatchObject({ bill_theme: 'bahi', bill_accent: 'maroon' });
+  });
+
+  it('is chosen during onboarding', async () => {
+    const db = openDb();
+    await migrate(db);
+    await completeOnboarding(db, PROFILE, 'tailor', 'en', { theme: 'bold', accent: 'purple' });
+    expect(await getProfile(db)).toMatchObject({ bill_theme: 'bold', bill_accent: 'purple', trade: 'tailor' });
   });
 });

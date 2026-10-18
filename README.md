@@ -4,7 +4,7 @@ Simple offline billing app for shopkeepers, taxi drivers and freelancers: save y
 rates, create a bill, and share it as a PDF over WhatsApp, email, or any other app.
 
 Built with Expo SDK 57 (React Native + TypeScript). All data stays on the phone (SQLite).
-Available in English and Hindi. Bills can be printed in English, Hindi or both. Items can be added by
+Available in English and Hindi. Bills can be printed in English, Hindi or both. Bills come in four styles (Classic, Bold header, Traditional, Receipt) with a choice of colour. Items can be added by
 speaking ("2 kilo chawal 60 rupaye kilo aur 1 litre doodh") or typing the same sentence.
 
 ## Run it
@@ -58,3 +58,7 @@ For regular clients (e.g. a transport company billing a business monthly), log e
 work entry on the client, then create one bill for a month, year, Indian FY or custom range. Each entry
 becomes a dated line with the trade's columns (From / To / Vehicle no. for transport). A statement of
 account lists every bill sent to the client in a period with paid and outstanding totals.
+
+## Roadmap
+
+Planned features and open tasks are listed in [docs/BACKLOG.md](docs/BACKLOG.md).
