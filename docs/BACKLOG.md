@@ -4,7 +4,6 @@ Everything planned or pending, in priority order. Update this file when somethin
 The detailed designs live in the PR or commit that implements each item.
 
 ## Now / blocking
-- [ ] **Push local `dev` to GitHub.** The SSH key isn't loaded in the agent: run `ssh-add ~/.ssh/id_ed25519`, then `git push origin dev`.
 - [ ] **Check on a real iPhone and Android phone (Expo Go):**
   - date picker (new bill, work entry, payment);
   - Share PDF and Share image, including Hindi text in the PDF;
