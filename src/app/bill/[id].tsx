@@ -3,28 +3,33 @@ import * as Linking from 'expo-linking';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 
 import { BillPaper } from '@/components/BillPaper';
-import { Button, Row, Screen, T } from '@/components/ui';
+import { PaymentSheet } from '@/components/PaymentSheet';
+import { Button, Card, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { deleteBill, getBill, setBillStatus } from '@/db/repo';
+import { deleteBill, deletePayment, getBill, markBillPaid, markBillUnpaid, markReminded } from '@/db/repo';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/i18n/I18nProvider';
+import { daysSinceBackup as daysSince } from '@/lib/backup';
+import { balanceOf, dueState } from '@/lib/due';
 import { errorText } from '@/lib/errors';
+import { formatDate, formatMoney } from '@/lib/money';
 import { shareBillImage, shareBillPdf } from '@/lib/pdf';
-import { billMessage, waPhone, whatsappUrl } from '@/lib/whatsapp';
+import { billMessage, reminderMessage, waPhone, whatsappUrl } from '@/lib/whatsapp';
 import type { BillWithLines } from '@/types';
 
 export default function BillDetail() {
   const db = useSQLiteContext();
   const c = useTheme();
-  const { t, tn } = useT();
+  const { t, tn, lang } = useT();
   const profile = useProfile();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [bill, setBill] = useState<BillWithLines | null | undefined>(undefined);
   const [busy, setBusy] = useState<'pdf' | 'image' | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const paperRef = useRef<View>(null);
 
   const load = useCallback(() => getBill(db, Number(id)).then(setBill), [db, id]);
@@ -55,19 +60,66 @@ export default function BillDetail() {
     }
   }
 
-  async function sendWhatsApp() {
-    if (!bill || !profile || !phone) return;
+  const currency = profile.currency;
+  const balance = balanceOf(bill);
+  const due = dueState(bill);
+  const remindedDays = daysSince(bill.last_reminded_at);
+
+  async function openWhatsApp(text: string): Promise<boolean> {
+    if (!phone) return false;
     try {
-      await Linking.openURL(whatsappUrl(phone, billMessage(bill, profile)));
+      await Linking.openURL(whatsappUrl(phone, text));
+      return true;
     } catch {
       Alert.alert(t('bill.whatsappUnavailable'), t('bill.whatsappUnavailableHint'));
+      return false;
     }
   }
 
-  async function togglePaid() {
+  async function sendWhatsApp() {
+    if (bill && profile) await openWhatsApp(billMessage(bill, profile));
+  }
+
+  async function sendReminder() {
+    if (!bill || !profile) return;
+    if (await openWhatsApp(reminderMessage(bill, profile))) {
+      await markReminded(db, bill.id);
+      load();
+    }
+  }
+
+  async function markPaid() {
     if (!bill) return;
-    await setBillStatus(db, bill.id, isPaid ? 'unpaid' : 'paid');
+    await markBillPaid(db, bill.id);
     load();
+  }
+
+  function markUnpaid() {
+    Alert.alert(t('bill.markUnpaidTitle'), t('bill.markUnpaidMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('bill.markUnpaidTitle'),
+        style: 'destructive',
+        onPress: async () => {
+          await markBillUnpaid(db, bill!.id);
+          load();
+        },
+      },
+    ]);
+  }
+
+  function confirmDeletePayment(paymentId: number, amount: number) {
+    Alert.alert(t('payment.deleteTitle'), formatMoney(amount, currency), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await deletePayment(db, paymentId);
+          load();
+        },
+      },
+    ]);
   }
 
   const isPeriodBill = !!bill.period_start;
@@ -93,18 +145,82 @@ export default function BillDetail() {
 
       <BillPaper ref={paperRef} bill={bill} profile={profile} />
 
-      <Button
-        title={t(isPaid ? 'bill.paidToggle' : 'bill.markPaid')}
-        variant={isPaid ? 'secondary' : 'primary'}
-        icon={
-          <Ionicons
-            name={isPaid ? 'checkmark-circle' : 'checkmark-circle-outline'}
-            size={20}
-            color={isPaid ? c.primary : c.primaryText}
+      {due.kind !== 'none' ? (
+        <T style={{ textAlign: 'center', fontWeight: '600', color: due.kind === 'due' ? c.textSecondary : c.danger }}>
+          {due.kind === 'overdue'
+            ? tn('due.overdue', due.days)
+            : due.kind === 'today'
+              ? t('due.today')
+              : t('due.on', { date: formatDate(due.date, lang) })}
+        </T>
+      ) : null}
+
+      {isPaid ? (
+        <Button
+          title={t('bill.paidToggle')}
+          variant="secondary"
+          icon={<Ionicons name="checkmark-circle" size={20} color={c.primary} />}
+          onPress={markUnpaid}
+        />
+      ) : (
+        <Row style={{ alignItems: 'stretch' }}>
+          <Button
+            title={t('bill.markPaid')}
+            style={{ flex: 1 }}
+            icon={<Ionicons name="checkmark-circle-outline" size={20} color={c.primaryText} />}
+            onPress={markPaid}
           />
-        }
-        onPress={togglePaid}
-      />
+          <Button
+            title={t('payment.record')}
+            variant="secondary"
+            style={{ flex: 1 }}
+            icon={<Ionicons name="cash-outline" size={20} color={c.primary} />}
+            onPress={() => setPayOpen(true)}
+          />
+        </Row>
+      )}
+
+      {!isPaid && phone ? (
+        <>
+          <Button
+            title={t('bill.remind')}
+            variant="secondary"
+            icon={<Ionicons name="notifications-outline" size={20} color={c.primary} />}
+            onPress={sendReminder}
+          />
+          {remindedDays !== null ? (
+            <T muted style={{ fontSize: 12, textAlign: 'center', marginTop: -Spacing.two }}>
+              {remindedDays === 0 ? t('bill.remindedToday') : tn('bill.remindedDays', remindedDays)}
+            </T>
+          ) : null}
+        </>
+      ) : null}
+
+      {bill.payments.length ? (
+        <Card>
+          <SectionTitle>{t('payment.history')}</SectionTitle>
+          {bill.payments.map((p) => (
+            <Row key={p.id} style={{ justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <T style={{ fontWeight: '600' }}>{formatMoney(p.amount_minor, currency)}</T>
+                <T muted style={{ fontSize: 13 }}>
+                  {formatDate(p.date, lang)} · {t(`payment.method.${p.method}`)}
+                  {p.reference ? ` · ${p.reference}` : ''}
+                </T>
+              </View>
+              <Pressable
+                onPress={() => confirmDeletePayment(p.id, p.amount_minor)}
+                hitSlop={10}
+                accessibilityLabel={t('payment.deleteTitle')}>
+                <Ionicons name="trash-outline" size={20} color={c.textSecondary} />
+              </Pressable>
+            </Row>
+          ))}
+          {!isPaid ? (
+            <T style={{ fontWeight: '600', color: c.warning }}>{t('payment.balance', { amount: formatMoney(balance, currency) })}</T>
+          ) : null}
+        </Card>
+      ) : null}
 
       {phone ? (
         <Button
@@ -156,6 +272,15 @@ export default function BillDetail() {
         />
       ) : null}
       <Button title={t('bill.delete')} variant="danger" onPress={confirmDelete} />
+
+      <PaymentSheet
+        visible={payOpen}
+        billId={bill.id}
+        balanceMinor={balance}
+        currency={currency}
+        onClose={() => setPayOpen(false)}
+        onSaved={load}
+      />
     </Screen>
   );
 }

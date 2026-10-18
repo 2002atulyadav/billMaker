@@ -7,7 +7,7 @@ import { AppError } from '@/lib/errors';
  */
 
 /** In foreign-key order: parents before children. Restore inserts in this order and deletes in reverse. */
-export const BACKUP_TABLES = ['profile', 'items', 'clients', 'bills', 'bill_items', 'entries'] as const;
+export const BACKUP_TABLES = ['profile', 'items', 'clients', 'bills', 'bill_items', 'entries', 'payments'] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
 export type Cell = string | number | null;

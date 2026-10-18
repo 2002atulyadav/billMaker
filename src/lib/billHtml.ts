@@ -112,7 +112,10 @@ export function billToHtml(
     .join('');
 
   const isPaid = bill.status === 'paid';
-  const pay = isPaid ? '' : payBlock(profile, bill.total_minor, bill.bill_no, tr);
+  // The QR always asks for what's still due, so a part-paid bill isn't paid twice.
+  const balance = Math.max(0, bill.total_minor - bill.paid_minor);
+  const pay = isPaid ? '' : payBlock(profile, balance, bill.bill_no, tr);
+  const partPaid = !isPaid && bill.paid_minor > 0;
 
   const customer =
     bill.customer_name || bill.customer_phone
@@ -139,6 +142,7 @@ ${BASE_CSS}</style></head>
       <h1>${esc(tr.t('pdf.bill'))}</h1>
       <div class="strong">${esc(bill.bill_no)}</div>
       <div class="muted">${date(bill.date)}</div>
+      ${!isPaid && bill.due_date ? `<div class="muted">${esc(tr.t('pdf.dueDate'))}: ${date(bill.due_date)}</div>` : ''}
       ${isPaid ? `<div class="stamp">${esc(tr.t('pdf.paid')).split(' / ').join('<br>')}</div>` : ''}`)}
 
   <div class="meta"><div>${customer}</div>${period}</div>
@@ -160,6 +164,12 @@ ${BASE_CSS}</style></head>
         : ''
     }
     <div class="grand"><span>${esc(tr.t('pdf.total'))}</span><span>${money(bill.total_minor)}</span></div>
+    ${
+      partPaid
+        ? `<div><span>${esc(tr.t('pdf.paidAmount'))}</span><span>-${money(bill.paid_minor)}</span></div>
+    <div class="grand"><span>${esc(tr.t('pdf.balanceDue'))}</span><span>${money(balance)}</span></div>`
+        : ''
+    }
   </div>
 
   ${pay}

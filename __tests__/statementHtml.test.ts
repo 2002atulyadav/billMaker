@@ -15,6 +15,7 @@ const profile: Profile = {
   bill_language: 'en',
   next_bill_no: 4,
   last_backup_at: null,
+  app_lock: 0,
 };
 const client: Client = { id: 1, name: 'ABC <Logistics>', phone: '9876543210', address: 'MIDC\nPune' };
 
@@ -29,6 +30,9 @@ const bill = (no: string, total: number, status: Bill['status'], extra: Partial<
   subtotal_minor: total,
   total_minor: total,
   status,
+  paid_minor: status === 'paid' ? total : 0,
+  due_date: null,
+  last_reminded_at: null,
   paid_at: null,
   client_id: 1,
   customer_address: client.address,

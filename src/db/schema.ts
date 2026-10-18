@@ -3,6 +3,17 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 export const DATABASE_NAME = 'billmaker.db';
 
 /**
+ * Bills marked paid before payments were recorded (schema < 7) get one payment for the full amount,
+ * so their balance stays zero. Also run after restoring an old backup.
+ */
+export const BACKFILL_PAYMENTS = `
+  INSERT INTO payments (bill_id, amount_minor, date, method)
+    SELECT id, total_minor, COALESCE(substr(paid_at, 1, 10), date), 'other' FROM bills
+    WHERE status = 'paid' AND total_minor > 0 AND id NOT IN (SELECT bill_id FROM payments);
+  UPDATE bills SET paid_minor = total_minor WHERE status = 'paid';
+`;
+
+/**
  * Each entry upgrades the schema by one version. Append new migrations; never edit
  * ones that have shipped, since devices only run the ones above their user_version.
  */
@@ -94,16 +105,36 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE profile ADD COLUMN last_backup_at TEXT;
   `,
+  `
+  ALTER TABLE bills ADD COLUMN due_date TEXT;
+  ALTER TABLE bills ADD COLUMN last_reminded_at TEXT;
+  ALTER TABLE bills ADD COLUMN paid_minor INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+    date TEXT NOT NULL,
+    method TEXT NOT NULL DEFAULT 'upi',
+    reference TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_payments_bill ON payments(bill_id);
+  CREATE INDEX idx_bills_status_due ON bills(status, due_date);
+  ${BACKFILL_PAYMENTS}
+  ALTER TABLE profile ADD COLUMN app_lock INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /** Current schema version; backups record it so a newer backup isn't restored into an older app. */
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-export async function migrate(db: SQLiteDatabase): Promise<void> {
+/** Runs every pending migration. `upTo` lets tests stop at an older version to check an upgrade. */
+export async function migrate(db: SQLiteDatabase, upTo = MIGRATIONS.length): Promise<void> {
   await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
-  while (version < MIGRATIONS.length) {
+  while (version < upTo) {
     const sql = MIGRATIONS[version];
     const next = version + 1;
     await db.withTransactionAsync(async () => {

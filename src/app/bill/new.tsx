@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/i18n/I18nProvider';
 import { errorText } from '@/lib/errors';
 import { isSameCustomer, suggestCustomers } from '@/lib/customers';
+import { addDays, DUE_PRESETS } from '@/lib/due';
 import {
   computeTotals,
   formatMoney,
@@ -26,10 +27,13 @@ import {
   parseQty,
   todayISO,
 } from '@/lib/money';
+import { unitsFor } from '@/lib/presets';
 import type { VoiceLine } from '@/lib/voiceParse';
 import type { BillWithLines, Client, Item } from '@/types';
 
-type DraftLine = { key: number; description: string; qty: string; unit: string; price: string };
+/** `custom` lines were typed by hand, so they get a unit picker (saved items and voice lines bring their own). */
+type DraftLine = { key: number; description: string; qty: string; unit: string; price: string; custom?: boolean };
+type DueChoice = 'none' | (typeof DUE_PRESETS)[number] | 'pick';
 type LineErrors = { description?: boolean; qty?: boolean; price?: boolean };
 
 export default function NewBill() {
@@ -48,6 +52,8 @@ export default function NewBill() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [date, setDate] = useState(todayISO());
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const [dueChoice, setDueChoice] = useState<DueChoice>('none');
+  const [dueCustom, setDueCustom] = useState(() => addDays(todayISO(), 7));
   const [discount, setDiscount] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<Item[]>([]);
@@ -109,6 +115,7 @@ export default function NewBill() {
   }
 
   const currency = profile?.currency ?? '₹';
+  const units = unitsFor(profile?.trade ?? 'general');
   const parsed = lines.map((l) => ({ qty: parseQty(l.qty) ?? 0, unit_price_minor: parseAmount(l.price) ?? 0 }));
   const totals = computeTotals(parsed, parseAmount(discount) ?? 0);
 
@@ -177,6 +184,7 @@ export default function NewBill() {
         client_id: matchedClient?.id ?? null,
         customer_address: matchedClient?.address ?? '',
         date,
+        due_date: dueChoice === 'none' ? null : dueChoice === 'pick' ? dueCustom : addDays(date, dueChoice),
         discount_minor: parseAmount(discount) ?? 0,
         notes: notes.trim(),
         lines: lines.map((l) => ({
@@ -226,6 +234,20 @@ export default function NewBill() {
             />
           ) : null}
           <DateField label={t('newBill.date')} value={date} onChange={setDate} />
+          <T muted style={{ fontSize: 13 }}>{t('due.title')}</T>
+          <Row style={{ flexWrap: 'wrap' }}>
+            <Chip label={t('due.none')} selected={dueChoice === 'none'} onPress={() => setDueChoice('none')} />
+            {DUE_PRESETS.map((d) => (
+              <Chip
+                key={d}
+                label={d === 0 ? t('due.onReceipt') : t('due.days', { count: d })}
+                selected={dueChoice === d}
+                onPress={() => setDueChoice(d)}
+              />
+            ))}
+            <Chip label={t('due.pick')} selected={dueChoice === 'pick'} onPress={() => setDueChoice('pick')} />
+          </Row>
+          {dueChoice === 'pick' ? <DateField label={t('due.title')} value={dueCustom} onChange={setDueCustom} /> : null}
         </Card>
 
         <Card onLayout={(e) => (itemsY.current = e.nativeEvent.layout.y)}>
@@ -272,6 +294,21 @@ export default function NewBill() {
                     />
                   </View>
                 </Row>
+                {l.custom ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginLeft: 28 }}>
+                    <Row>
+                      {units.map((u) => (
+                        <Chip
+                          key={u}
+                          label={unitLabel(u)}
+                          selected={l.unit === u}
+                          // tapping the selected unit again clears it
+                          onPress={() => updateLine(l.key, { unit: l.unit === u ? '' : u })}
+                        />
+                      ))}
+                    </Row>
+                  </ScrollView>
+                ) : null}
                 <T style={{ textAlign: 'right', fontWeight: '600' }}>{formatMoney(amount, currency)}</T>
               </View>
             );
@@ -289,7 +326,7 @@ export default function NewBill() {
               variant="secondary"
               style={{ flex: 1 }}
               icon={<Ionicons name="add" size={18} color={c.primary} />}
-              onPress={() => setLines((ls) => [...ls, newLine({ description: '', qty: '1', unit: '', price: '' })])}
+              onPress={() => setLines((ls) => [...ls, newLine({ description: '', qty: '1', unit: '', price: '', custom: true })])}
             />
           </Row>
           <Button

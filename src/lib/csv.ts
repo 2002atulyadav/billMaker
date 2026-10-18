@@ -30,7 +30,8 @@ export function billsCsv(bills: Bill[], t: Translator['t']): string {
   return toCsv([
     [
       t('csv.billNo'), t('csv.date'), t('csv.customer'), t('csv.phone'), t('csv.subtotal'),
-      t('csv.discount'), t('csv.total'), t('csv.status'), t('csv.paidOn'), t('csv.notes'),
+      t('csv.discount'), t('csv.total'), t('csv.paidAmount'), t('csv.balance'), t('csv.status'), t('csv.dueDate'),
+      t('csv.paidOn'), t('csv.notes'),
     ],
     ...bills.map((b) => [
       b.bill_no,
@@ -40,7 +41,10 @@ export function billsCsv(bills: Bill[], t: Translator['t']): string {
       money(b.subtotal_minor),
       money(b.discount_minor),
       money(b.total_minor),
-      t(b.status === 'paid' ? 'pdf.statusPaid' : 'pdf.statusUnpaid'),
+      money(Math.min(b.paid_minor, b.total_minor)),
+      money(Math.max(0, b.total_minor - b.paid_minor)),
+      t(b.status === 'paid' ? 'pdf.statusPaid' : b.status === 'partial' ? 'pdf.statusPartial' : 'pdf.statusUnpaid'),
+      b.due_date ?? '',
       // paid_at is SQLite's "YYYY-MM-DD HH:MM:SS" (UTC); the date part is enough here
       b.paid_at ? b.paid_at.slice(0, 10) : '',
       b.notes,

@@ -13,6 +13,9 @@ const bill: BillWithLines = {
   subtotal_minor: 1005000,
   total_minor: 1000000,
   status: 'paid',
+  paid_minor: 1000000,
+  due_date: null,
+  last_reminded_at: null,
   paid_at: '2026-10-05 08:00:00',
   client_id: 1,
   customer_address: '',
@@ -23,6 +26,7 @@ const bill: BillWithLines = {
     { key: 'to', label: 'To' },
   ],
   created_at: '2026-10-01 08:00:00',
+  payments: [],
   lines: [
     {
       description: 'Trip',
@@ -54,9 +58,9 @@ describe('bill exports', () => {
 
   it('writes one row per bill with decimal amounts', () => {
     const rows = billsCsv([bill], en.t).replace('﻿', '').trim().split('\r\n');
-    expect(rows[0]).toBe('Bill no.,Date,Customer,Phone,Subtotal,Discount,Total,Status,Paid on,Notes');
+    expect(rows[0]).toBe('Bill no.,Date,Customer,Phone,Subtotal,Discount,Total,Paid,Balance,Status,Due date,Paid on,Notes');
     expect(rows.slice(1).join('\r\n')).toBe(
-      'TR-0001,2026-10-01,"Acme, ""Pune""",\'+91 98765 43210,10050.00,50.00,10000.00,Paid,2026-10-05,"line1\nline2"',
+      'TR-0001,2026-10-01,"Acme, ""Pune""",\'+91 98765 43210,10050.00,50.00,10000.00,10000.00,0.00,Paid,,2026-10-05,"line1\nline2"',
     );
   });
 
