@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { ProfileForm } from '@/components/ProfileForm';
 import { Button, Card, Chip, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { completeOnboarding } from '@/db/repo';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRestore } from '@/hooks/use-restore';
 import { useTheme } from '@/hooks/use-theme';
 import { LANG_NAMES } from '@/i18n';
@@ -21,14 +23,21 @@ export default function Onboarding() {
   const c = useTheme();
   const { t, unit, lang, setLang } = useT();
   const [preset, setPreset] = useState<TradePreset | null>(null);
+  const dark = useColorScheme() === 'dark';
   // Moving to a new phone: bring everything back instead of setting up again.
   const { restore, busy } = useRestore(() => router.replace('/'));
 
   if (!preset) {
     return (
       <Screen contentContainerStyle={{ gap: Spacing.three }}>
+        <Image
+          source={dark ? LOGO_DARK : LOGO}
+          style={styles.logo}
+          contentFit="contain"
+          accessibilityLabel="Dhanzo — Bill bhejo, paisa pao"
+        />
         {/* Language first, before any other text has to be read. */}
-        <Row style={{ justifyContent: 'flex-end' }}>
+        <Row style={{ justifyContent: 'center' }}>
           {LANGS.map((l) => (
             <Chip key={l} label={LANG_NAMES[l]} selected={lang === l} onPress={() => setLang(l)} />
           ))}
@@ -107,7 +116,12 @@ export default function Onboarding() {
   );
 }
 
+// The full logo with the tagline greets every new user (the app icon is too small to carry it).
+const LOGO = require('../../assets/brand/dhanzo-logo.png');
+const LOGO_DARK = require('../../assets/brand/dhanzo-logo-dark.png');
+
 const styles = StyleSheet.create({
+  logo: { width: '100%', maxWidth: 300, aspectRatio: 1532 / 520, alignSelf: 'center', marginTop: Spacing.two },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   tile: {
     // Two columns: half width minus half the gap.
