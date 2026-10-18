@@ -17,12 +17,12 @@ The detailed designs live in the PR or commit that implements each item.
 
 ## Release prep (v1)
 - [ ] Buy **dhanzo.app**, search the IP India trademark registry for "Dhanzo" (classes 9 and 36), and file once it's clear.
-- [ ] **Rename to Dhanzo:**
-  - in `app.json`: `name`, `slug`, `scheme`, and the IDs `app.dhanzo` (permanent once published);
-  - the backup file name and the `backup.*` strings;
-  - keep accepting `app: 'bill-maker'` backups.
+- [x] Rename to Dhanzo (`app.dhanzo`); old backups still restore.
+- [ ] **Test APK:**
+  - `npx eas-cli@latest login`, then `init`, then `build --platform android --profile preview`;
+  - share the link and `docs/TESTING.md` with 10–20 testers across trades for 1–2 weeks.
 - [ ] Store listing in English and Hindi: screenshots, short and long description, feature graphic (`assets/brand/`).
-- [ ] Privacy policy (all data stays on the phone; no account).
+- [ ] Privacy policy: drafted in `docs/PRIVACY.md`. Add the support email and host it at a public URL (Play needs one).
 - [ ] EAS: preview APK → production build → Play internal testing → App Store TestFlight.
 - [ ] Shopkeeper recall test of the name and tagline with 5–10 real users.
 - [ ] Decide: should bills made before payment tracking default to unpaid? (They do today.)

@@ -37,6 +37,11 @@ describe('backup file', () => {
     expect(parsed.tables.bills).toHaveLength(2);
   });
 
+  it('still restores backups made before the app was renamed', () => {
+    const old = { ...makeBackup(tables, 6), app: 'bill-maker' };
+    expect(parseBackup(JSON.stringify(old), 6).tables.bills).toHaveLength(2);
+  });
+
   it('tolerates a byte-order mark', () => {
     expect(parseBackup('﻿' + JSON.stringify(makeBackup(tables, 6)), 6).tables.items).toHaveLength(1);
   });
@@ -63,7 +68,7 @@ describe('backup file', () => {
   });
 
   it('names the file by date', () => {
-    expect(backupFileName(new Date(2026, 0, 5))).toBe('BillMaker-backup-2026-01-05.json');
+    expect(backupFileName(new Date(2026, 0, 5))).toBe('Dhanzo-backup-2026-01-05.json');
   });
 });
 
